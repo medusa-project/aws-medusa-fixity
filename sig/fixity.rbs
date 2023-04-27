@@ -1,0 +1,8 @@
+module Fixity
+  MEGABYTE: Integer
+  VERSION: String
+  # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+  def self.restore_batch: -> untyped
+
+  def self.run_fixity: -> untyped
+end

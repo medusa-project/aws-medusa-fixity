@@ -1,0 +1,10 @@
+#check for messages in the queue every minute
+* * * * * /Users/gschmitt/workspace/aws-medusa-fixity/bin/fetch_responses.sh
+
+#check for fixity ready files and run fixity every minute
+* * * * * /Users/gschmitt/workspace/aws-medusa-fixity/bin/compute_fixity.sh
+
+#initiate restoration of a batch of objects everyday
+0 0 * * * /Users/gschmitt/workspace/aws-medusa-fixity/bin/initiate_batch_restoration.sh
+
+

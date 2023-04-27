@@ -1,0 +1,11 @@
+class MedusaItem
+  @file_id: String
+  @initial_checksum: String
+  @s3_key: String
+
+  def file_id: -> string
+
+  def initial_checksum: -> string
+
+  def s3_key: -> string
+end
