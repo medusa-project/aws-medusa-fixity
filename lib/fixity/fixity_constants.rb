@@ -10,9 +10,9 @@ class FixityConstants
   BULK = "Bulk"
   BACKUP_BUCKET = "medusa-demo-main-backup"
   S3_CLIENT = Aws::S3::Client.new(region: REGION_WEST)
-  SQS_CLIENT_WEST = Aws::SQS::Client.new(region: REGION_WEST)
-  SQS_CLIENT_EAST = Aws::SQS::Client.new(region: REGION_EAST)
-  # DYNAMODB_CLIENT = Aws::DynamoDB::Client.new(endpoint: "http://localhost:8000")
+  SQS_CLIENT_WEST = Aws::SQS::Client.new(endpoint: "http://localhost:9324")
+  SQS_CLIENT_EAST = Aws::SQS::Client.new(endpoint: "http://localhost:9324")
+  DYNAMODB_CLIENT = Aws::DynamoDB::Client.new(endpoint: "http://localhost:8000")
   DYNAMODB_CLIENT = Aws::DynamoDB::Client.new(region: REGION_WEST)
   MEDUSA_QUEUE_URL = "https://sqs.us-east-2.amazonaws.com/721945215539/fixity-to-medusa-demo"
   S3_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/721945215539/s3-to-fixity-demo"

@@ -26,36 +26,7 @@ class RestoreFiles
     # make restore requests to S3 glacier for next batch of files to be processed
     # files may take up to 48 hours to restore and are only available for 24 to save costs
     batch.each do |fixity_item|
-      begin
-        FixityConstants::S3_CLIENT.restore_object({
-          bucket: FixityConstants::BACKUP_BUCKET,
-          key: fixity_item.s3_key,
-          restore_request: {
-            days: 1,
-            glacier_job_parameters: {
-              tier: FixityConstants::BULK
-            },
-          },
-        })
-      rescue Aws::S3::Errors::NoSuchKey => e
-        #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
-        error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
-        checksums = {FixityConstants::MD5 => ""}
-        parameters = {FixityConstants::CHECKSUMS => checksums, FixityConstants::FOUND => FixityConstants::FALSE}
-        passthrough = {FixityConstants::CFS_FILE_ID => fixity_item.file_id, FixityConstants::CFS_FILE_CLASS => FixityConstants::CFS_FILE}
-        message = {FixityConstants::ACTION => FixityConstants::FILE_FIXITY,
-                   FixityConstants::STATUS => FixityConstants::FAILURE,
-                   FixityConstants::ERROR_MESSAGE => error_message,
-                   FixityConstants::PARAMETERS => parameters,
-                   FixityConstants::PASSTHROUGH => passthrough}
-      rescue StandardError => e
-        # Error requesting object restoration, add to dynamodb table for retry?
-        # Send error message to medusa
-        error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
-
-      end
+      #skip s3 restoration locally, minio doesn't support restoration
       begin
         FixityConstants::DYNAMODB_CLIENT.put_item({
           table_name: FixityConstants::TABLE_NAME,

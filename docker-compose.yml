@@ -1,0 +1,15 @@
+#docker-compose -f docker-compose.yml up -d
+version: "3.7"
+services:
+  sqs-mock:
+    build:
+      context: docker/sqs-mock/.
+      dockerfile: Dockerfile
+    hostname: sqs-mock
+    ports:
+      - "9324:9324"
+  dynamodb:
+    image: amazon/dynamodb-local
+    ports:
+      - "8000:8000"
+    hostname: dynamodb
