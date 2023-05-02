@@ -15,7 +15,7 @@ class FixityConstants
   DYNAMODB_CLIENT = Aws::DynamoDB::Client.new(region: REGION_WEST)
   MEDUSA_QUEUE_URL = "https://sqs.us-east-2.amazonaws.com/721945215539/fixity-to-medusa-demo"
   S3_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/721945215539/s3-to-fixity-demo"
-  LOGGER = Logger.new('/Users/gschmitt/workspace/aws-medusa-fixity/logs/fixity.log', 'daily')
+  LOGGER = Logger.new('/home/ec2-user/logs/fixity.log', 'daily')
 
   #DYNAMODB
   TABLE_NAME = "FixityVerifications"
