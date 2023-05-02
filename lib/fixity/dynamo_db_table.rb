@@ -18,6 +18,14 @@ class DynamoDbTable
           attribute_name: "LastUpdated",
           attribute_type: "S",
         },
+        {
+          attribute_name: "Error",
+          attribute_type: "S",
+        },
+        {
+          attribute_name: "MISMATCH",
+          attribute_type: "S",
+        },
       ],
       key_schema: [
         {
@@ -32,6 +40,38 @@ class DynamoDbTable
           key_schema: [
             {
               attribute_name: "FixityReady",
+              key_type: "HASH",
+            },
+            {
+              attribute_name: "LastUpdated",
+              key_type: "RANGE"
+            },
+          ],
+          projection: {
+            projection_type: "ALL"
+          },
+        },
+        {
+          index_name: "FixityErrors",
+          key_schema: [
+            {
+              attribute_name: "Error",
+              key_type: "HASH",
+            },
+            {
+              attribute_name: "LastUpdated",
+              key_type: "RANGE"
+            },
+          ],
+          projection: {
+            projection_type: "ALL"
+          },
+        },
+        {
+          index_name: "FixityMismatch",
+          key_schema: [
+            {
+              attribute_name: "MISMATCH",
               key_type: "HASH",
             },
             {
@@ -87,9 +127,9 @@ class DynamoDbTable
     puts Time.now.getutc.iso8601(3)
   end
 
-  createTable
+  # createTable
   # getTime
-  # scanTable
+  scanTable
   # deleteTable
   # describeTable
 end

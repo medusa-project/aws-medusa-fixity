@@ -8,25 +8,27 @@ require_relative 'restore_files.rb'
 
 class RestorationEvent
   def self.handle_message
-    response = FixityConstants::SQS_CLIENT_WEST.receive_message(queue_url: FixityConstants::S3_QUEUE_URL, max_number_of_messages: 1)
-    return nil if response.data.messages.count.zero?
-
-    message = JSON.parse(response.data.messages[0].body)
-    FixityConstants::LOGGER.info("SQS response: #{message}")
-
-    FixityConstants::SQS_CLIENT_WEST.delete_message({queue_url: FixityConstants::S3_QUEUE_URL, receipt_handle: response.data.messages[0].receipt_handle})
-    records = message["Records"][0]
-    restore_type = records["eventName"]
-    s3_key = records["s3"]["object"]["key"]
-    file_size = records["s3"]["object"]["size"]
-    restore_timestamp = records["eventTime"]
-
-    FixityConstants::LOGGER.info("restoreType: #{restore_type}")
-    FixityConstants::LOGGER.info("s3Key: #{s3_key}")
-    FixityConstants::LOGGER.info("restoreTimestamp: #{restore_timestamp}")
+    # response = FixityConstants::SQS_CLIENT_WEST.receive_message(queue_url: FixityConstants::S3_QUEUE_URL, max_number_of_messages: 1)
+    # return nil if response.data.messages.count.zero?
+    #
+    # message = JSON.parse(response.data.messages[0].body)
+    # FixityConstants::LOGGER.info("SQS response: #{message}")
+    #
+    # FixityConstants::SQS_CLIENT_WEST.delete_message({queue_url: FixityConstants::S3_QUEUE_URL, receipt_handle: response.data.messages[0].receipt_handle})
+    # records = message["Records"][0]
+    # restore_type = records["eventName"]
+    # s3_key = records["s3"]["object"]["key"]
+    # file_size = records["s3"]["object"]["size"]
+    # restore_timestamp = records["eventTime"]
+    #
+    # FixityConstants::LOGGER.info("restoreType: #{restore_type}")
+    # FixityConstants::LOGGER.info("s3Key: #{s3_key}")
+    # FixityConstants::LOGGER.info("restoreTimestamp: #{restore_timestamp}")
     ###### TEST VALUES #########
-    # s3_key = "156/182/DOI-10-5072-fk2idbdev-1660571_v1/dataset_files/Candidate_FRC_PTAC_Meeting_Summary_Template.docx"
-    # restore_type = FixityConstants::RESTORE_DELETED
+    s3_key = "test-key"
+    restore_type = FixityConstants::RESTORE_COMPLETED
+    file_size = 0
+    restore_timestamp = Time.now.getutc.iso8601(3)
     ###### TEST VALUES #########
 
     case restore_type
@@ -46,7 +48,7 @@ class RestorationEvent
           },
           update_expression: "SET #{FixityConstants::RESTORATION_STATUS}  = :restoration_status, "\
                                  "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
-                                 "#{FixityConstants::FILE_SIZE} = :file_size}"
+                                 "#{FixityConstants::FILE_SIZE} = :file_size"
           })
       rescue StandardError => e
         error_message = "Error updating item #{s3_key}: #{e.message}"
