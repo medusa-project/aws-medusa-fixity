@@ -50,7 +50,7 @@ class RestorationEvent
           })
       rescue StandardError => e
         error_message = "Error updating item #{s3_key}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
+        FixityConstants::LOGGER.error(error_message)
       end
     when FixityConstants::RESTORE_COMPLETED
       #update dynamodb item to complete, mark fixity ready, and update last updated
@@ -73,7 +73,7 @@ class RestorationEvent
         })
       rescue StandardError => e
         error_message = "Error updating item #{s3_key}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
+        FixityConstants::LOGGER.error(error_message)
       end
     when FixityConstants::RESTORE_DELETED
       #update dynamodb item to expired, remove fixity ready, and update last updated
@@ -97,7 +97,7 @@ class RestorationEvent
         })
       rescue StandardError => e
         error_message = "Error updating item #{s3_key}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
+        FixityConstants::LOGGER.error(error_message)
       end
       fixity_status = update_item_resp.attributes[FixityConstants::FIXITY_STATUS]
       if fixity_status != FixityConstants::DONE
@@ -109,7 +109,7 @@ class RestorationEvent
       end
     else
       error_message = "Unknown restore type #{restore_type}"
-      FixityConstants::LOGGER.info(error_message)
+      FixityConstants::LOGGER.error(error_message)
       return nil
     end
   end

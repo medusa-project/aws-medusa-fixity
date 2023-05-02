@@ -5,6 +5,7 @@ require 'aws-sdk-sqs'
 
 require_relative 'fixity/fixity_constants.rb'
 require_relative 'fixity/medusa_item'
+require_relative 'send_message.rb'
 
 class RestoreFiles
   #MAX_BATCH_SIZE = max bytes to process in 24 hours
@@ -40,20 +41,14 @@ class RestoreFiles
       rescue Aws::S3::Errors::NoSuchKey => e
         #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
         error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
-        checksums = {FixityConstants::MD5 => ""}
-        parameters = {FixityConstants::CHECKSUMS => checksums, FixityConstants::FOUND => FixityConstants::FALSE}
-        passthrough = {FixityConstants::CFS_FILE_ID => fixity_item.file_id, FixityConstants::CFS_FILE_CLASS => FixityConstants::CFS_FILE}
-        message = {FixityConstants::ACTION => FixityConstants::FILE_FIXITY,
-                   FixityConstants::STATUS => FixityConstants::FAILURE,
-                   FixityConstants::ERROR_MESSAGE => error_message,
-                   FixityConstants::PARAMETERS => parameters,
-                   FixityConstants::PASSTHROUGH => passthrough}
+        FixityConstants::LOGGER.error(error_message)
+        SendMessage.send_message(file_id, nil, FixityConstants::FALSE, FixityConstants::FAILURE, error_message)
+
       rescue StandardError => e
         # Error requesting object restoration, add to dynamodb table for retry?
         # Send error message to medusa
         error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
+        FixityConstants::LOGGER.error(error_message)
 
       end
       begin
