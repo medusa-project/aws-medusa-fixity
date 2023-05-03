@@ -18,8 +18,8 @@ class FixityConstants
   LOGGER = Logger.new('/home/ec2-user/logs/fixity.log', 'daily')
 
   #DYNAMODB
-  TABLE_NAME = "FixityVerifications"
-  INDEX_NAME = "FixityCalculation"
+  TABLE_NAME = "FixityDemoTable"
+  INDEX_NAME = "FixityProcessingQueue"
   S3_KEY = "S3Key"
   FILE_ID = "FileId"
   INITIAL_CHECKSUM = "InitialChecksum"
