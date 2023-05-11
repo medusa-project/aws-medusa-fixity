@@ -56,7 +56,7 @@ class RestoreFiles
         name = file_row["name"]
         size = file_row["size"]
 
-        break if (size + batch_size > MAX_BATCH_SIZE)
+        break if (size.to_i + batch_size > MAX_BATCH_SIZE)
 
         checksum = file_row["md5_sum"]
         path = name
@@ -87,7 +87,7 @@ class RestoreFiles
       table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
       item: {
         FixityConstants::ID_TYPE => FixityConstants::CURRENT_ID,
-        FixityConstants::FILE_ID => id,
+        FixityConstants::FILE_ID => id.to_s,
       }
     })
 
@@ -116,7 +116,7 @@ class RestoreFiles
         })
       rescue Aws::S3::Errors::NoSuchKey => e
         #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
-        error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
+        error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.backtrace}"
         FixityConstants::LOGGER.error(error_message)
         SendMessage.send_message(file_id, nil, FixityConstants::FALSE, FixityConstants::FAILURE, error_message)
 
