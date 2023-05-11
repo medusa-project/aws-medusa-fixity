@@ -54,9 +54,9 @@ class RestoreFiles
 
         directory_id = file_row["cfs_directory_id"]
         name = file_row["name"]
-        size = file_row["size"]
+        size = file_row["size"].to_i
 
-        break if (size.to_i + batch_size > MAX_BATCH_SIZE)
+        break if (size + batch_size > MAX_BATCH_SIZE)
 
         checksum = file_row["md5_sum"]
         path = name
