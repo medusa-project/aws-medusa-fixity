@@ -44,7 +44,7 @@ class RestoreFiles
     #query medusa and add files to batch
     while batch_size < MAX_BATCH_SIZE && id <= max_id
       begin
-        file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id}" )
+        file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
         file_row = file_result.first
 
         if file_row.nil?
@@ -79,6 +79,7 @@ class RestoreFiles
       rescue StandardError => e
         error_message = "Error getting file information for file #{id} from medusa db: #{e.message}"
         FixityConstants::LOGGER.error(error_message)
+        break
       end
     end
 
