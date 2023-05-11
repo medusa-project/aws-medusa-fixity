@@ -9,6 +9,7 @@ class FixityConstants
   CFS_FILE_ID: String
   CHECKSUMS: String
   COMPLETED: String
+  CURRENT_ID: String
   DONE: String
   DYNAMODB_CLIENT: Object
   ERROR: String
@@ -22,16 +23,21 @@ class FixityConstants
   FIXITY_OUTCOME: String
   FIXITY_READY: String
   FIXITY_STATUS: String
+  FIXITY_TABLE_NAME: String
   FOUND: String
+  ID_TYPE: String
   INDEX_NAME: String
   INITIAL_CHECKSUM: String
   INITIATED: String
   LAST_UPDATED: String
   LOGGER: Logger
   MATCH: String
+  MAX_ID: String
   MD5: String
+  MEDUSA_DB_ID_TABLE_NAME: String
   MEDUSA_QUEUE_URL: String
   MISMATCH: String
+  MISSING_KEYS_TABLE_NAME: String
   PARAMETERS: String
   PASSTHROUGH: String
   REGION_EAST: String

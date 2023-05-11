@@ -11,3 +11,5 @@ gem "aws-sdk-s3"
 gem "aws-sdk-sqs"
 
 gem "digest"
+
+gem "pg"

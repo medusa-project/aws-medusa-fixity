@@ -35,7 +35,7 @@ class RestorationEvent
       #update dynamodb table with restoration status
       begin
         FixityConstants::DYNAMODB_CLIENT.update_item({
-          table_name: FixityConstants::TABLE_NAME,
+          table_name: FixityConstants::FIXITY_TABLE_NAME,
           key: {
             FixityConstants::S3_KEY => s3_key
           },
@@ -56,7 +56,7 @@ class RestorationEvent
       #update dynamodb item to complete, mark fixity ready, and update last updated
       begin
         FixityConstants::DYNAMODB_CLIENT.update_item({
-          table_name: FixityConstants::TABLE_NAME,
+          table_name: FixityConstants::FIXITY_TABLE_NAME,
           key: {
             FixityConstants::S3_KEY => s3_key
           },
@@ -80,7 +80,7 @@ class RestorationEvent
       # RestoreFiles.restore_batch(s3_key)
       begin
         update_item_resp = FixityConstants::DYNAMODB_CLIENT.update_item({
-          table_name: FixityConstants::TABLE_NAME,
+          table_name: FixityConstants::FIXITY_TABLE_NAME,
           key: {
             FixityConstants::S3_KEY => s3_key
           },

@@ -25,6 +25,7 @@ GEM
       aws-eventstream (~> 1, >= 1.0.2)
     digest (3.1.1)
     jmespath (1.6.2)
+    pg (1.4.6)
     rake (13.0.6)
 
 PLATFORMS
@@ -35,6 +36,7 @@ DEPENDENCIES
   aws-sdk-s3
   aws-sdk-sqs
   digest
+  pg
   rake (~> 13.0)
 
 BUNDLED WITH

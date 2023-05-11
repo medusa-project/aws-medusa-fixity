@@ -2,25 +2,100 @@
 require 'aws-sdk-dynamodb'
 require 'aws-sdk-s3'
 require 'aws-sdk-sqs'
+require 'pg'
 
-require_relative 'fixity/fixity_constants.rb'
+require_relative 'fixity/fixity_constants'
+require_relative 'fixity/fixity_secrets'
 require_relative 'fixity/medusa_item'
-require_relative 'send_message.rb'
+require_relative 'send_message'
 
 class RestoreFiles
-  #MAX_BATCH_SIZE = max bytes to process in 24 hours
+  MAX_BATCH_SIZE = 189797120
   def self.get_batch
     #get information from medusa DB for a batch of files to be restored(File ID, S3 key, initial checksum)
     # medusa_item => make object with file_id, s3_key, initial_checksum
+    batch_size = 0
     batch = []
+    begin
+      #Get medusa id to start next batch from dynamodb
+      query_resp= FixityConstants::DYNAMODB_CLIENT.query({
+        table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
+        limit: 1,
+        scan_index_forward: true,
+        expression_attribute_values: {
+          ":file_type" => FixityConstants::CURRENT_ID,
+        },
+        key_condition_expression: "#{FixityConstants::ID_TYPE} = :file_type",
+      })
+    rescue StandardError => e
+      # Error getting current medusa id
+      # Send error message to medusa
+      error_message = "Error getting medusa id to query the database: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+
+    end
+
+    return nil if query_resp.nil?
+    max_resp = FixitySecrets::MEDUSA_DB.exec("SELECT MAX(id) FROM cfs_files")
+    max_id = max_resp.first["max"].to_i
+
+    id = query_resp.items[0][FixityConstants::FILE_ID].to_i
+
     #query medusa and add files to batch
-    # Implement medusa querying
-    s3_key = "test-key"
-    file_id = "test-id"
-    initial_checksum = "test-initial-checksum"
-    medusa_item = MedusaItem.new(s3_key, file_id, initial_checksum)
-    batch.push(medusa_item)
-    restore_batch(batch)
+    while batch_size < MAX_BATCH_SIZE && id <= max_id
+      begin
+        file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id}" )
+        file_row = file_result.first
+
+        if file_row.nil?
+          id = id+1
+          next
+        end
+
+        directory_id = file_row["cfs_directory_id"]
+        name = file_row["name"]
+        size = file_row["size"]
+
+        break if (size + batch_size > MAX_BATCH_SIZE)
+
+        checksum = file_row["md5_sum"]
+        path = name
+        while directory_id
+          dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
+          dir_row = dir_result.first
+          dir_path = dir_row["path"]
+          path.prepend(dir_path,'/')
+          directory_id = dir_row["parent_id"]
+          parent_type = dir_row["parent_type"]
+          break if parent_type != "CfsDirectory"
+        end
+        s3_key = path
+        file_id = id
+        initial_checksum = checksum
+        medusa_item = MedusaItem.new(s3_key, file_id, initial_checksum)
+        batch.push(medusa_item)
+        id = id+1
+        batch_size = batch_size + size
+      rescue StandardError => e
+        error_message = "Error getting file information for file #{id} from medusa db: #{e.message}"
+        FixityConstants::LOGGER.error(error_message)
+      end
+    end
+
+    FixityConstants::DYNAMODB_CLIENT.put_item({
+      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
+      item: {
+        FixityConstants::ID_TYPE => FixityConstants::CURRENT_ID,
+        FixityConstants::FILE_ID => id,
+      }
+    })
+
+    batch.each do |fixity_item|
+      puts fixity_item.s3_key
+      puts fixity_item.file_id
+      puts fixity_item.initial_checksum
+    end
+    # restore_batch(batch) #call one by one or together?
   end
 
   def self.restore_batch(batch)
@@ -53,7 +128,7 @@ class RestoreFiles
       end
       begin
         FixityConstants::DYNAMODB_CLIENT.put_item({
-          table_name: FixityConstants::TABLE_NAME,
+          table_name: FixityConstants::FIXITY_TABLE_NAME,
           item: {
             FixityConstants::S3_KEY => fixity_item.s3_key,
             FixityConstants::FILE_ID => fixity_item.file_id,

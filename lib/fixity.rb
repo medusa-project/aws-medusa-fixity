@@ -12,7 +12,7 @@ class Fixity
     #get object info from dynamodb
     begin
       query_resp= FixityConstants::DYNAMODB_CLIENT.query({
-        table_name: FixityConstants::TABLE_NAME,
+        table_name: FixityConstants::FIXITY_TABLE_NAME,
         index_name: FixityConstants::INDEX_NAME,
         limit: 1,
         scan_index_forward: true,
@@ -35,7 +35,7 @@ class Fixity
     #update dynamodb table to remove fixity ready and set fixity status
     begin
       FixityConstants::DYNAMODB_CLIENT.update_item({
-        table_name: FixityConstants::TABLE_NAME,
+        table_name: FixityConstants::FIXITY_TABLE_NAME,
         key: {
           FixityConstants::S3_KEY => s3_key
         },
@@ -79,7 +79,7 @@ class Fixity
     when FixityConstants::MATCH
       #update dynamodb calculated checksum, fixity status, fixity verification
       FixityConstants::DYNAMODB_CLIENT.update_item({
-        table_name: FixityConstants::TABLE_NAME,
+        table_name: FixityConstants::FIXITY_TABLE_NAME,
         key: {
           FixityConstants::S3_KEY => s3_key
         },
@@ -97,7 +97,7 @@ class Fixity
     when FixityConstants::MISMATCH
       #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
       FixityConstants::DYNAMODB_CLIENT.update_item({
-        table_name: FixityConstants::TABLE_NAME,
+        table_name: FixityConstants::FIXITY_TABLE_NAME,
         key: {
           FixityConstants::S3_KEY => s3_key
         },

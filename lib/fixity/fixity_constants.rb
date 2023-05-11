@@ -18,7 +18,9 @@ class FixityConstants
   LOGGER = Logger.new('/home/ec2-user/logs/fixity.log', 'daily')
 
   #DYNAMODB
-  TABLE_NAME = "FixityDemoTable"
+  FIXITY_TABLE_NAME = "FixityDemoTable"
+  MISSING_KEYS_TABLE_NAME = "FixityDemoMissingKeysTable"
+  MEDUSA_DB_ID_TABLE_NAME = "FixityDemoMedusaDBIdTable"
   INDEX_NAME = "FixityProcessingQueue"
   S3_KEY = "S3Key"
   FILE_ID = "FileId"
@@ -30,6 +32,11 @@ class FixityConstants
   LAST_UPDATED = "LastUpdated"
   FIXITY_READY = "FixityReady"
   FILE_SIZE = "FileSize"
+  ID_TYPE = "IdType"
+
+  #MEDUSA DB IDS
+  CURRENT_ID = "CurrentId"
+  MAX_ID = "MaxId"
 
   #FIXITY STATUS
   CALCULATING = "CALCULATING"
