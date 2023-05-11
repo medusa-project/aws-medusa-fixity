@@ -77,7 +77,7 @@ class RestoreFiles
         id = id+1
         batch_size = batch_size + size
       rescue StandardError => e
-        error_message = "Error getting file information for file #{id} from medusa db: #{e.message}"
+        error_message = "Error getting file information for file #{id} from medusa db: #{e.backtrace}"
         FixityConstants::LOGGER.error(error_message)
         break
       end
