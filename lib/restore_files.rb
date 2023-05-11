@@ -91,9 +91,9 @@ class RestoreFiles
     })
 
     batch.each do |fixity_item|
-      puts fixity_item.s3_key
-      puts fixity_item.file_id
-      puts fixity_item.initial_checksum
+      FixityConstants::LOGGER.info(fixity_item.s3_key)
+      FixityConstants::LOGGER.info(fixity_item.file_id)
+      FixityConstants::LOGGER.info(fixity_item.initial_checksum)
     end
     # restore_batch(batch) #call one by one or together?
   end
