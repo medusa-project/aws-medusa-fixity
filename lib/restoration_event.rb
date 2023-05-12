@@ -30,28 +30,6 @@ class RestorationEvent
     ###### TEST VALUES #########
 
     case restore_type
-    when FixityConstants::RESTORE_POSTED
-      #update dynamodb item to initiated and update last updated
-      #update dynamodb table with restoration status
-      begin
-        FixityConstants::DYNAMODB_CLIENT.update_item({
-          table_name: FixityConstants::FIXITY_TABLE_NAME,
-          key: {
-            FixityConstants::S3_KEY => s3_key
-          },
-          expression_attribute_values: {
-            ":restoration_status" => FixityConstants::INITIATED,
-            ":file_size" => file_size,
-            ":timestamp" => restore_timestamp
-          },
-          update_expression: "SET #{FixityConstants::RESTORATION_STATUS}  = :restoration_status, "\
-                                 "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
-                                 "#{FixityConstants::FILE_SIZE} = :file_size"
-          })
-      rescue StandardError => e
-        error_message = "Error updating item #{s3_key}: #{e.message}"
-        FixityConstants::LOGGER.error(error_message)
-      end
     when FixityConstants::RESTORE_COMPLETED
       #update dynamodb item to complete, mark fixity ready, and update last updated
       begin

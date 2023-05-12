@@ -96,7 +96,7 @@ class RestoreFiles
       FixityConstants::LOGGER.info(fixity_item.file_id)
       FixityConstants::LOGGER.info(fixity_item.initial_checksum)
     end
-    # restore_batch(batch) #call one by one or together?
+    restore_batch(batch) #call one by one or together?
   end
 
   def self.restore_batch(batch)

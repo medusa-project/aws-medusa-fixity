@@ -120,7 +120,7 @@ class Fixity
     end
 
     # send sqs to medusa with result
-    SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
+    #SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
   end
 end
 
