@@ -46,7 +46,7 @@ class RestorationEvent
           },
           update_expression: "SET #{FixityConstants::RESTORATION_STATUS}  = :restoration_status, "\
                                  "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
-                                 "#{FixityConstants::FILE_SIZE} = :file_size}"
+                                 "#{FixityConstants::FILE_SIZE} = :file_size"
           })
       rescue StandardError => e
         error_message = "Error updating item #{s3_key}: #{e.message}"

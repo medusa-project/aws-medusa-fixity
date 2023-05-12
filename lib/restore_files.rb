@@ -118,7 +118,7 @@ class RestoreFiles
         #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
         error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.backtrace}"
         FixityConstants::LOGGER.error(error_message)
-        SendMessage.send_message(file_id, nil, FixityConstants::FALSE, FixityConstants::FAILURE, error_message)
+        #SendMessage.send_message(file_id, nil, FixityConstants::FALSE, FixityConstants::FAILURE, error_message)
 
       rescue StandardError => e
         # Error requesting object restoration, add to dynamodb table for retry?
