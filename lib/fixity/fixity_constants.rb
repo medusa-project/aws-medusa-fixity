@@ -8,11 +8,11 @@ class FixityConstants
   REGION_WEST = "us-west-2"
   REGION_EAST = "us-east-2"
   BULK = "Bulk"
-  SQS_CLIENT_WEST = Aws::SQS::Client.new(endpoint: "http://localhost:9324")
+  SQS_CLIENT_WEST = Aws::SQS::Client.new(region: REGION_WEST, endpoint: "http://localhost:9324",  access_key_id: 'x', secret_access_key: 'x')
   SQS_CLIENT_EAST = Aws::SQS::Client.new(endpoint: "http://localhost:9324")
   DYNAMODB_CLIENT = Aws::DynamoDB::Client.new(endpoint: "http://localhost:8000")
-  MEDUSA_QUEUE_URL = "https://sqs.us-east-2.amazonaws.com/721945215539/fixity-to-medusa-demo"
-  S3_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/721945215539/s3-to-fixity-demo"
+  MEDUSA_QUEUE_URL = "http://localhost:9324/queue/fixity-to-medusa-local"
+  S3_QUEUE_URL = "http://localhost:9324/queue/aws-to-fixity-local"
   LOGGER = Logger.new('/Users/gschmitt/workspace/aws-medusa-fixity/logs/fixity.log', 'daily')
 
   #DYNAMODB
