@@ -1,4 +1,0 @@
-[Unit]
-Description=Run fixity
-[Service]
-ExecStart=/home/ec2-user/aws-medusa-fixity/bin/compute_fixity.sh
