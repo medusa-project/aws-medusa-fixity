@@ -9,6 +9,7 @@ class Fixity
   MEGABYTE = 1024 * 1024
 
   def self.run_fixity
+    FixityConstants::LOGGER.info("running fixity")
     #get object info from dynamodb
     begin
       query_resp= FixityConstants::DYNAMODB_CLIENT.query({

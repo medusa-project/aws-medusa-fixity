@@ -1,0 +1,4 @@
+[Unit]
+Description=Fetch sqs responses
+[Service]
+ExecStart=/home/ec2-user/aws-medusa-fixity/bin/fetch_responses.sh
