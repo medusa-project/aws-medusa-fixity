@@ -14,7 +14,6 @@ class RestorationEvent
     return nil if response.data.messages.count.zero?
     response.messages.each do |message|
       body = JSON.parse(message.body)
-      FixityConstants::LOGGER.info("SQS response: #{message}")
       FixityConstants::SQS_CLIENT_WEST.delete_message({queue_url: FixityConstants::S3_QUEUE_URL,
                                                        receipt_handle: message.receipt_handle})
       records = body["Records"][0]
@@ -23,9 +22,8 @@ class RestorationEvent
       file_size = records["s3"]["object"]["size"]
       restore_timestamp = records["eventTime"]
 
-      FixityConstants::LOGGER.info("restoreType: #{restore_type}")
-      FixityConstants::LOGGER.info("s3Key: #{s3_key}")
-      FixityConstants::LOGGER.info("restoreTimestamp: #{restore_timestamp}")
+      FixityConstants::LOGGER.info("restoreType: #{restore_type}, s3Key: #{s3_key}, restoreTimestamp: #{restore_timestamp}")
+
       ###### TEST VALUES #########
       # s3_key = "156/182/DOI-10-5072-fk2idbdev-1660571_v1/dataset_files/Candidate_FRC_PTAC_Meeting_Summary_Template.docx"
       # restore_type = FixityConstants::RESTORE_DELETED
@@ -84,6 +82,12 @@ class RestorationEvent
           s3_key = update_item_resp.attributes[FixityConstants::S3_KEY]
           file_id = update_item_resp.attributes[FixityConstants::FILE_ID]
           initial_checksum = update_item_resp.attributes[FixityConstants::INITIAL_CHECKSUM]
+          error_message = "File #{file_id} expired before being processed by fixity"
+          FixityConstants::LOGGER.error(error_message)
+          countFile = File.open("expirationCount.txt")
+          count= countFile.read.to_i
+          countFile.close
+          File.write("expirationCount.txt", count+1)
           item = MedusaItem.new(s3_key, file_id, initial_checksum)
           RestoreFiles.restore_batch([item])
         end
