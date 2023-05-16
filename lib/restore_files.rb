@@ -11,6 +11,7 @@ require_relative 'send_message'
 
 class RestoreFiles
   MAX_BATCH_SIZE = 1677721600
+  MAX_BATCH_COUNT = 100
   def self.get_batch
     #get information from medusa DB for a batch of files to be restored(File ID, S3 key, initial checksum)
     # medusa_item => make object with file_id, s3_key, initial_checksum
@@ -42,7 +43,8 @@ class RestoreFiles
     id = query_resp.items[0][FixityConstants::FILE_ID].to_i
 
     #query medusa and add files to batch
-    while batch_size < MAX_BATCH_SIZE && id <= max_id
+    batch_count = 0
+    while batch_size < MAX_BATCH_SIZE && batch_count < MAX_BATCH_COUNT && id <= max_id
       begin
         file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
         file_row = file_result.first
@@ -76,6 +78,7 @@ class RestoreFiles
         batch.push(medusa_item)
         id = id+1
         batch_size = batch_size + size
+        batch_count = batch_count + 1
       rescue StandardError => e
         error_message = "Error getting file information for file #{id} from medusa db: #{e.backtrace}"
         FixityConstants::LOGGER.error(error_message)

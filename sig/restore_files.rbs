@@ -1,3 +1,4 @@
 class RestoreFiles
+  MAX_BATCH_COUNT: Integer
   MAX_BATCH_SIZE: Integer
 end
