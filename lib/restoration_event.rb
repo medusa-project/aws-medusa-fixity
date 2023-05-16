@@ -71,7 +71,7 @@ class RestorationEvent
                                    "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
                                    "#{FixityConstants::FILE_SIZE} = :file_size "\
                                "REMOVE #{FixityConstants::FIXITY_READY}",
-            return_values: "ALL_NEW"
+            return_values: "ALL_OLD"
           })
         rescue StandardError => e
           error_message = "Error updating item #{s3_key}: #{e.message}"
