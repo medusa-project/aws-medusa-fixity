@@ -10,8 +10,8 @@ require_relative 'fixity/medusa_item'
 require_relative 'send_message'
 
 class RestoreFiles
-  MAX_BATCH_SIZE = 1677721600
-  MAX_BATCH_COUNT = 100
+  MAX_BATCH_COUNT = 500
+  MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
   def self.get_batch
     #get information from medusa DB for a batch of files to be restored(File ID, S3 key, initial checksum)
     # medusa_item => make object with file_id, s3_key, initial_checksum
