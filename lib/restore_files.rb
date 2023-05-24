@@ -93,12 +93,6 @@ class RestoreFiles
         FixityConstants::FILE_ID => id.to_s,
       }
     })
-
-    batch.each do |fixity_item|
-      FixityConstants::LOGGER.info(fixity_item.s3_key)
-      FixityConstants::LOGGER.info(fixity_item.file_id)
-      FixityConstants::LOGGER.info(fixity_item.initial_checksum)
-    end
     restore_batch(batch) #call one by one or together?
   end
 
@@ -107,6 +101,8 @@ class RestoreFiles
     # files may take up to 48 hours to restore and are only available for 24 to save costs
     batch.each do |fixity_item|
       begin
+        message = "Requesting restoration for: File Id= #{fixity_item.file_id}, S3 Key: #{fixity_item.s3_key}"
+        FixityConstants::LOGGER.info(message)
         FixityConstants::S3_CLIENT.restore_object({
           bucket: FixityConstants::BACKUP_BUCKET,
           key: fixity_item.s3_key,

@@ -31,6 +31,8 @@ class Fixity
     file_id = query_resp.items[0][FixityConstants::FILE_ID]
     initial_checksum = query_resp.items[0][FixityConstants::INITIAL_CHECKSUM]
     file_size = query_resp.items[0][FixityConstants::FILE_SIZE]
+    message = "Running fixity: File id #{file_id}, S3 key #{s3_key}"
+    FixityConstants::LOGGER.info(message)
 
     #update dynamodb table to remove fixity ready and set fixity status
     begin
