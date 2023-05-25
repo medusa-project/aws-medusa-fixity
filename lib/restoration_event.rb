@@ -22,7 +22,7 @@ class RestorationEvent
       file_size = records["s3"]["object"]["size"]
       restore_timestamp = records["eventTime"]
 
-      FixityConstants::LOGGER.info("Processing message: restore type: #{restore_type}, s3 key: #{s3_key}")
+      FixityConstants::LOGGER.info("PROCESSING: restore type: #{restore_type}, s3 key: #{s3_key}")
 
       ###### TEST VALUES #########
       # s3_key = "156/182/DOI-10-5072-fk2idbdev-1660571_v1/dataset_files/Candidate_FRC_PTAC_Meeting_Summary_Template.docx"

@@ -101,7 +101,7 @@ class RestoreFiles
     # files may take up to 48 hours to restore and are only available for 24 to save costs
     batch.each do |fixity_item|
       begin
-        message = "Requesting restoration for: File Id= #{fixity_item.file_id}, S3 Key: #{fixity_item.s3_key}"
+        message = "RESTORING: File Id= #{fixity_item.file_id}, S3 Key: #{fixity_item.s3_key}"
         FixityConstants::LOGGER.info(message)
         FixityConstants::S3_CLIENT.restore_object({
           bucket: FixityConstants::BACKUP_BUCKET,
@@ -139,7 +139,7 @@ class RestoreFiles
         })
       rescue StandardError => e
         error_message = "Error putting item in dynamodb table for #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
-        FixityConstants::LOGGER.info(error_message)
+        FixityConstants::LOGGER.error(error_message)
       end
     end
   end
