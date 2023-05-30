@@ -82,15 +82,10 @@ class RestorationEvent
           s3_key = update_item_resp.attributes[FixityConstants::S3_KEY]
           file_id = update_item_resp.attributes[FixityConstants::FILE_ID]
           initial_checksum = update_item_resp.attributes[FixityConstants::INITIAL_CHECKSUM]
-          error_message = "File #{file_id} expired before being processed by fixity"
-          FixityConstants::LOGGER.error(update_item_resp.attributes)
-          FixityConstants::LOGGER.error(error_message)
-          countFile = File.open("expirationCount.txt")
-          count= countFile.read.to_i
-          countFile.close
-          File.write("expirationCount.txt", count+1)
+          message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
+          FixityConstants::LOGGER.info(message)
           item = MedusaItem.new(s3_key, file_id, initial_checksum)
-          # RestoreFiles.restore_batch([item])
+          RestoreFiles.restore_batch([item])
         end
       else
         error_message = "Unknown restore type #{restore_type}"
