@@ -10,7 +10,7 @@ require_relative 'fixity/medusa_item'
 require_relative 'send_message'
 
 class RestoreFiles
-  MAX_BATCH_COUNT = 500
+  MAX_BATCH_COUNT = 1000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
   def self.get_batch
     #get information from medusa DB for a batch of files to be restored(File ID, S3 key, initial checksum)
@@ -42,9 +42,13 @@ class RestoreFiles
 
     id = query_resp.items[0][FixityConstants::FILE_ID].to_i
 
+    done_message = "DONE: fixity id matches maximum file id in medusa"
+    FixityConstants::LOGGER.error(done_message) if id >= max_id
+
     #query medusa and add files to batch
     batch_count = 0
-    while batch_size < MAX_BATCH_SIZE && batch_count < MAX_BATCH_COUNT && id <= max_id
+    # while batch_size < MAX_BATCH_SIZE && batch_count < MAX_BATCH_COUNT && id <= max_id
+    while batch_count < MAX_BATCH_COUNT && id <= max_id
       begin
         file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
         file_row = file_result.first
@@ -58,7 +62,7 @@ class RestoreFiles
         name = file_row["name"]
         size = file_row["size"].to_i
 
-        break if (size + batch_size > MAX_BATCH_SIZE)
+        # break if (size + batch_size > MAX_BATCH_SIZE)
 
         checksum = file_row["md5_sum"]
         path = name
@@ -77,6 +81,7 @@ class RestoreFiles
         medusa_item = MedusaItem.new(s3_key, file_id, initial_checksum)
         batch.push(medusa_item)
         id = id+1
+        FixityConstants::LOGGER.info(done_message) if id >= max_id
         batch_size = batch_size + size
         batch_count = batch_count + 1
       rescue StandardError => e
