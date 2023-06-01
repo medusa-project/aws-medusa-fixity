@@ -17,6 +17,7 @@ class RestoreFiles
     # medusa_item => make object with file_id, s3_key, initial_checksum
     batch_size = 0
     batch = []
+    time_start = Time.now
     begin
       #Get medusa id to start next batch from dynamodb
       query_resp= FixityConstants::DYNAMODB_CLIENT.query({
@@ -98,12 +99,16 @@ class RestoreFiles
         FixityConstants::FILE_ID => id.to_s,
       }
     })
+    time_end = Time.now
+    duration = time_end - time_start
+    FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
     restore_batch(batch) #call one by one or together?
   end
 
   def self.restore_batch(batch)
     # make restore requests to S3 glacier for next batch of files to be processed
     # files may take up to 48 hours to restore and are only available for 24 to save costs
+    time_start = Time.now
     batch.each do |fixity_item|
       begin
         message = "RESTORING: File Id= #{fixity_item.file_id}, S3 Key: #{fixity_item.s3_key}"
@@ -147,5 +152,8 @@ class RestoreFiles
         FixityConstants::LOGGER.error(error_message)
       end
     end
+    time_end = Time.now
+    duration = time_end - time_start
+    FixityConstants::LOGGER.info("Restore batch duration to process #{batch.length()} files: #{duration}")
   end
 end
