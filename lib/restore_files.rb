@@ -109,7 +109,7 @@ class RestoreFiles
     done
   end
 
-  def get_file(id)
+  def self.get_file(id)
     #TODO optimize to get multiple files per call to medusa DB
     file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
     file_result.first
