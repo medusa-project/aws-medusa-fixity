@@ -40,7 +40,7 @@ class RestorationEvent
     end
   end
 
-  def handle_completed(s3_key, file_size, restore_timestamp)
+  def self.handle_completed(s3_key, file_size, restore_timestamp)
     begin
       FixityConstants::DYNAMODB_CLIENT.update_item({
        table_name: FixityConstants::FIXITY_TABLE_NAME,
@@ -64,7 +64,7 @@ class RestorationEvent
     end
   end
 
-  def handle_deleted(s3_key, file_size, restore_timestamp)
+  def self.handle_deleted(s3_key, file_size, restore_timestamp)
     begin
       update_item_resp = FixityConstants::DYNAMODB_CLIENT.update_item({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
@@ -89,7 +89,7 @@ class RestorationEvent
     handle_expiration(update_item_resp)
   end
 
-  def handle_expiration(update_item_resp)
+  def self.handle_expiration(update_item_resp)
     fixity_status = update_item_resp.attributes[FixityConstants::FIXITY_STATUS]
     #TODO check this logic
     if fixity_status != FixityConstants::DONE && fixity_status != FixityConstants::ERROR

@@ -66,7 +66,7 @@ class Fixity
     #SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
   end
 
-  def get_fixity_item
+  def self.get_fixity_item
     begin
       query_resp = FixityConstants::DYNAMODB_CLIENT.query({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
@@ -86,7 +86,7 @@ class Fixity
     query_resp.items[0]
   end
 
-  def update_fixity_ready
+  def self.update_fixity_ready
     begin
       FixityConstants::DYNAMODB_CLIENT.update_item({
        table_name: FixityConstants::FIXITY_TABLE_NAME,
@@ -107,7 +107,7 @@ class Fixity
     end
   end
 
-  def update_fixity_match(fixity_outcome, calculated_checksum)
+  def self.update_fixity_match(fixity_outcome, calculated_checksum)
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {
@@ -126,7 +126,7 @@ class Fixity
     })
   end
 
-  def update_fixity_mismatch(fixity_outcome, calculated_checksum)
+  def self.update_fixity_mismatch(fixity_outcome, calculated_checksum)
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {
@@ -147,7 +147,7 @@ class Fixity
     })
   end
 
-  def update_fixity_error
+  def self.update_fixity_error
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {

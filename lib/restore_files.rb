@@ -73,7 +73,7 @@ class RestoreFiles
     restore_batch(batch) #call one by one or together?
   end
 
-  def get_medusa_id
+  def self.get_medusa_id
     begin
       #Get medusa id to start next batch from dynamodb
       query_resp= FixityConstants::DYNAMODB_CLIENT.query({
@@ -97,12 +97,12 @@ class RestoreFiles
     query_resp.items[0][FixityConstants::FILE_ID].to_i
   end
 
-  def get_max_id
+  def self.get_max_id
     max_resp = FixitySecrets::MEDUSA_DB.exec("SELECT MAX(id) FROM cfs_files")
     max_resp.first["max"].to_i
   end
 
-  def evaluate_done(id, max_id)
+  def self.evaluate_done(id, max_id)
     done = id >= max_id
     done_message = "DONE: fixity id matches maximum file id in medusa"
     FixityConstants::LOGGER.error(done_message) if done
@@ -115,7 +115,7 @@ class RestoreFiles
     file_result.first
   end
 
-  def get_path(directory_id, path)
+  def self.get_path(directory_id, path)
     while directory_id
       dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
       dir_row = dir_result.first
@@ -128,7 +128,7 @@ class RestoreFiles
     path
   end
 
-  def put_medusa_id(id)
+  def self.put_medusa_id(id)
     FixityConstants::DYNAMODB_CLIENT.put_item({
       table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
       item: {
@@ -199,7 +199,7 @@ class RestoreFiles
     FixityConstants::LOGGER.info("Restore batch duration to process #{batch.length()} files: #{duration}")
   end
 
-  def put_batch_item(fixity_item)
+  def self.put_batch_item(fixity_item)
     begin
       FixityConstants::DYNAMODB_CLIENT.put_item({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
@@ -217,7 +217,7 @@ class RestoreFiles
     end
   end
 
-  def put_missing_key(fixity_item)
+  def self.put_missing_key(fixity_item)
     begin
       FixityConstants::DYNAMODB_CLIENT.put_item({
         table_name: FixityConstants::MISSING_KEYS_TABLE_NAME,

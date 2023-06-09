@@ -88,7 +88,7 @@ class BatchRestoreFiles
     send_batch_job(manifest, etag)
   end
 
-  def get_medusa_id
+  def self.get_medusa_id
     begin
       #Get medusa id to start next batch from dynamodb
       query_resp= FixityConstants::DYNAMODB_CLIENT.query({
@@ -112,12 +112,12 @@ class BatchRestoreFiles
     query_resp.items[0][FixityConstants::FILE_ID].to_i
   end
 
-  def get_max_id
+  def self.get_max_id
     max_resp = FixitySecrets::MEDUSA_DB.exec("SELECT MAX(id) FROM cfs_files")
     max_resp.first["max"].to_i
   end
 
-  def evaluate_done(id, max_id)
+  def self.evaluate_done(id, max_id)
     done = id >= max_id
     done_message = "DONE: fixity id matches maximum file id in medusa"
     FixityConstants::LOGGER.error(done_message) if done
@@ -125,7 +125,7 @@ class BatchRestoreFiles
   end
 
 
-  def put_medusa_id(id)
+  def self.put_medusa_id(id)
     FixityConstants::DYNAMODB_CLIENT.put_item({
       table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
       item: {
@@ -135,7 +135,7 @@ class BatchRestoreFiles
     })
   end
 
-  def put_batch_item(fixity_item)
+  def self.put_batch_item(fixity_item)
     begin
       FixityConstants::DYNAMODB_CLIENT.put_item({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
@@ -153,7 +153,7 @@ class BatchRestoreFiles
     end
   end
 
-  def put_manifest(manifest)
+  def self.put_manifest(manifest)
     s3_resp = FixityConstants::S3_CLIENT.put_object(
       body: File.new(manifest),
       bucket: "#{FixityConstants::BACKUP_BUCKET}",
@@ -162,7 +162,7 @@ class BatchRestoreFiles
     s3_resp.etag
   end
 
-  def send_batch_job(manifest, etag)
+  def self.send_batch_job(manifest, etag)
     token = get_request_token + 1
     begin
       resp = FixityConstants::S3_CONTROL_CLIENT.create_job({
@@ -204,7 +204,7 @@ class BatchRestoreFiles
     put_request_token(token)
   end
 
-  def get_request_token
+  def self.get_request_token
     begin
       #Get medusa id to start next batch from dynamodb
       query_resp= FixityConstants::DYNAMODB_CLIENT.query({
@@ -228,7 +228,7 @@ class BatchRestoreFiles
     query_resp.items[0][FixityConstants::FILE_ID].to_i
   end
 
-  def put_request_token(token)
+  def self.put_request_token(token)
     FixityConstants::DYNAMODB_CLIENT.put_item({
       table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
       item: {
