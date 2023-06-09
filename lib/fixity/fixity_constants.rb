@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require 'aws-sdk-dynamodb'
 require 'aws-sdk-s3'
+require 'aws-sdk-s3control'
 require 'aws-sdk-sqs'
 
 class FixityConstants
@@ -9,6 +10,7 @@ class FixityConstants
   REGION_EAST = "us-east-2"
   BULK = "Bulk"
   BACKUP_BUCKET = "medusa-demo-main-backup"
+  BACKUP_BUCKET_ARN = "arn:aws:s3:::medusa-demo-main-backup"
   S3_CLIENT = Aws::S3::Client.new(region: REGION_WEST)
   SQS_CLIENT_WEST = Aws::SQS::Client.new(region: REGION_WEST)
   SQS_CLIENT_EAST = Aws::SQS::Client.new(region: REGION_EAST)
@@ -16,6 +18,10 @@ class FixityConstants
   MEDUSA_QUEUE_URL = "https://sqs.us-east-2.amazonaws.com/721945215539/fixity-to-medusa-demo"
   S3_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/721945215539/s3-to-fixity-demo"
   LOGGER = Logger.new('/home/ec2-user/logs/fixity.log', 'daily')
+  S3_CONTROL_CLIENT = Aws::S3Control::Client.new(region: REGION_WEST)
+  ACCOUNT_ID = "721945215539"
+  BATCH_ROLE_ARN = "arn:aws:iam::721945215539:role/fixity-demo-batch-restore-role"
+
 
   #DYNAMODB
   FIXITY_TABLE_NAME = "FixityDemoTable"
@@ -37,6 +43,7 @@ class FixityConstants
   #MEDUSA DB IDS
   CURRENT_ID = "CurrentId"
   MAX_ID = "MaxId"
+  CURRENT_REQUEST_TOKEN = "CurrentRequestToken"
 
   #FIXITY STATUS
   CALCULATING = "CALCULATING"

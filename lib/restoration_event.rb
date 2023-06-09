@@ -24,69 +24,14 @@ class RestorationEvent
 
       FixityConstants::LOGGER.info("PROCESSING: restore type: #{restore_type}, s3 key: #{s3_key}")
 
-      ###### TEST VALUES #########
-      # s3_key = "156/182/DOI-10-5072-fk2idbdev-1660571_v1/dataset_files/Candidate_FRC_PTAC_Meeting_Summary_Template.docx"
-      # restore_type = FixityConstants::RESTORE_DELETED
-      ###### TEST VALUES #########
-
       case restore_type
       when FixityConstants::RESTORE_COMPLETED
         #update dynamodb item to complete, mark fixity ready, and update last updated
-        begin
-          FixityConstants::DYNAMODB_CLIENT.update_item({
-            table_name: FixityConstants::FIXITY_TABLE_NAME,
-            key: {
-              FixityConstants::S3_KEY => s3_key
-            },
-            expression_attribute_values: {
-              ":restoration_status" => FixityConstants::COMPLETED,
-              ":fixity_ready" => FixityConstants::TRUE,
-              ":file_size" => file_size,
-              ":timestamp" => restore_timestamp
-            },
-            update_expression: "SET #{FixityConstants::RESTORATION_STATUS} = :restoration_status, "\
-                                   "#{FixityConstants::FIXITY_READY} = :fixity_ready, "\
-                                   "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
-                                   "#{FixityConstants::FILE_SIZE} = :file_size"
-          })
-        rescue StandardError => e
-          error_message = "Error updating item #{s3_key}: #{e.message}"
-          FixityConstants::LOGGER.error(error_message)
-        end
+        handle_completed(s3_key, file_size, restore_timestamp)
       when FixityConstants::RESTORE_DELETED
         #update dynamodb item to expired, remove fixity ready, and update last updated
         # RestoreFiles.restore_batch(s3_key)
-        begin
-          update_item_resp = FixityConstants::DYNAMODB_CLIENT.update_item({
-            table_name: FixityConstants::FIXITY_TABLE_NAME,
-            key: {
-              FixityConstants::S3_KEY => s3_key
-            },
-            expression_attribute_values: {
-              ":restoration_status" => FixityConstants::EXPIRED,
-              ":file_size" => file_size,
-              ":timestamp" => Time.now.getutc.iso8601(3)
-            },
-            update_expression: "SET #{FixityConstants::RESTORATION_STATUS} = :restoration_status, "\
-                                   "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
-                                   "#{FixityConstants::FILE_SIZE} = :file_size "\
-                               "REMOVE #{FixityConstants::FIXITY_READY}",
-            return_values: "ALL_OLD"
-          })
-        rescue StandardError => e
-          error_message = "Error updating item #{s3_key}: #{e.message}"
-          FixityConstants::LOGGER.error(error_message)
-        end
-        fixity_status = update_item_resp.attributes[FixityConstants::FIXITY_STATUS]
-        if fixity_status != FixityConstants::DONE
-          s3_key = update_item_resp.attributes[FixityConstants::S3_KEY]
-          file_id = update_item_resp.attributes[FixityConstants::FILE_ID]
-          initial_checksum = update_item_resp.attributes[FixityConstants::INITIAL_CHECKSUM]
-          message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
-          FixityConstants::LOGGER.info(message)
-          item = MedusaItem.new(s3_key, file_id, initial_checksum)
-          RestoreFiles.restore_batch([item])
-        end
+        handle_deleted(s3_key, file_size, restore_timestamp)
       else
         error_message = "Unknown restore type #{restore_type}"
         FixityConstants::LOGGER.error(error_message)
@@ -94,4 +39,68 @@ class RestorationEvent
       end
     end
   end
+
+  def handle_completed(s3_key, file_size, restore_timestamp)
+    begin
+      FixityConstants::DYNAMODB_CLIENT.update_item({
+       table_name: FixityConstants::FIXITY_TABLE_NAME,
+       key: {
+         FixityConstants::S3_KEY => s3_key
+       },
+       expression_attribute_values: {
+         ":restoration_status" => FixityConstants::COMPLETED,
+         ":fixity_ready" => FixityConstants::TRUE,
+         ":file_size" => file_size,
+         ":timestamp" => restore_timestamp
+       },
+       update_expression: "SET #{FixityConstants::RESTORATION_STATUS} = :restoration_status, "\
+                              "#{FixityConstants::FIXITY_READY} = :fixity_ready, "\
+                              "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
+                              "#{FixityConstants::FILE_SIZE} = :file_size"
+     })
+    rescue StandardError => e
+      error_message = "Error updating item #{s3_key}: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+  end
+
+  def handle_deleted(s3_key, file_size, restore_timestamp)
+    begin
+      update_item_resp = FixityConstants::DYNAMODB_CLIENT.update_item({
+        table_name: FixityConstants::FIXITY_TABLE_NAME,
+        key: {
+          FixityConstants::S3_KEY => s3_key
+        },
+        expression_attribute_values: {
+          ":restoration_status" => FixityConstants::EXPIRED,
+          ":file_size" => file_size,
+          ":timestamp" => Time.now.getutc.iso8601(3)
+        },
+        update_expression: "SET #{FixityConstants::RESTORATION_STATUS} = :restoration_status, "\
+                               "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
+                               "#{FixityConstants::FILE_SIZE} = :file_size "\
+                        "REMOVE #{FixityConstants::FIXITY_READY}",
+        return_values: "ALL_OLD"
+      })
+    rescue StandardError => e
+      error_message = "Error updating item #{s3_key}: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+    handle_expiration(update_item_resp)
+  end
+
+  def handle_expiration(update_item_resp)
+    fixity_status = update_item_resp.attributes[FixityConstants::FIXITY_STATUS]
+    #TODO check this logic
+    if fixity_status != FixityConstants::DONE && fixity_status != FixityConstants::ERROR
+      s3_key = update_item_resp.attributes[FixityConstants::S3_KEY]
+      file_id = update_item_resp.attributes[FixityConstants::FILE_ID]
+      initial_checksum = update_item_resp.attributes[FixityConstants::INITIAL_CHECKSUM]
+      message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
+      FixityConstants::LOGGER.info(message)
+      item = MedusaItem.new(s3_key, file_id, initial_checksum)
+      RestoreFiles.restore_batch([item])
+    end
+  end
+
 end

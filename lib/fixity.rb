@@ -10,49 +10,19 @@ class Fixity
 
   def self.run_fixity
     #get object info from dynamodb
-    begin
-      query_resp= FixityConstants::DYNAMODB_CLIENT.query({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        index_name: FixityConstants::INDEX_NAME,
-        limit: 1,
-        scan_index_forward: true,
-        expression_attribute_values: {
-          ":ready" => FixityConstants::TRUE,
-        },
-        key_condition_expression: "#{FixityConstants::FIXITY_READY} = :ready",
-      })
-      return nil if query_resp.items[0].nil?
-    rescue StandardError => e
-      error_message = "Error querying dynamodb table: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
+    fixity_item = get_fixity_item
 
-    s3_key = query_resp.items[0][FixityConstants::S3_KEY]
-    file_id = query_resp.items[0][FixityConstants::FILE_ID]
-    initial_checksum = query_resp.items[0][FixityConstants::INITIAL_CHECKSUM]
-    file_size = query_resp.items[0][FixityConstants::FILE_SIZE]
+    s3_key = fixity_item[FixityConstants::S3_KEY]
+    file_id = fixity_item[FixityConstants::FILE_ID]
+    initial_checksum = fixity_item[FixityConstants::INITIAL_CHECKSUM]
+    file_size = fixity_item[FixityConstants::FILE_SIZE]
+
     message = "FIXITY: File id #{file_id}, S3 key #{s3_key}"
     FixityConstants::LOGGER.info(message)
 
     #update dynamodb table to remove fixity ready and set fixity status
-    begin
-      FixityConstants::DYNAMODB_CLIENT.update_item({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        key: {
-          FixityConstants::S3_KEY => s3_key
-        },
-        expression_attribute_values: {
-          ":fixity_status" => FixityConstants::CALCULATING,
-          ":timestamp" => Time.now.getutc.iso8601(10)
-        },
-        update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
-                               "#{FixityConstants::LAST_UPDATED} = :timestamp "\
-                           "REMOVE #{FixityConstants::FIXITY_READY}"
-      })
-    rescue StandardError => e
-      error_message = "Error updating fixity ready and fixity status before calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
+    update_fixity_ready
+
     # stream s3 object through md5 calculation in 16 mb chunks
     # compare with initial md5 checksum and send medusa result via sqs
     md5 = Digest::MD5.new
@@ -73,49 +43,20 @@ class Fixity
     rescue StandardError => e
       error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
+      update_fixity_error
+      exit
     end
     #compare calculated checksum with initial checksum
     calculated_checksum = md5.hexdigest
     fixity_outcome = (calculated_checksum == initial_checksum) ? FixityConstants::MATCH : FixityConstants::MISMATCH
+
     case fixity_outcome
     when FixityConstants::MATCH
       #update dynamodb calculated checksum, fixity status, fixity verification
-      FixityConstants::DYNAMODB_CLIENT.update_item({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        key: {
-          FixityConstants::S3_KEY => s3_key
-        },
-        expression_attribute_values: {
-          ":fixity_status" => FixityConstants::DONE,
-          ":fixity_outcome" => fixity_outcome,
-          ":calculated_checksum" => calculated_checksum,
-          ":timestamp" => Time.now.getutc.iso8601(3)
-        },
-        update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
-                               "#{FixityConstants::FIXITY_OUTCOME} = :fixity_outcome, " \
-                               "#{FixityConstants::CALCULATED_CHECKSUM} = :calculated_checksum, " \
-                               "#{FixityConstants::LAST_UPDATED} = :timestamp"
-      })
+      update_fixity_match
     when FixityConstants::MISMATCH
       #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
-      FixityConstants::DYNAMODB_CLIENT.update_item({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        key: {
-          FixityConstants::S3_KEY => s3_key
-        },
-        expression_attribute_values: {
-          ":mismatch" => FixityConstants::TRUE,
-          ":fixity_status" => FixityConstants::DONE,
-          ":fixity_outcome" => fixity_outcome,
-          ":calculated_checksum" => calculated_checksum,
-          ":timestamp" => Time.now.getutc.iso8601(3)
-        },
-        update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
-                               "#{FixityConstants::FIXITY_OUTCOME} = :fixity_outcome, " \
-                               "#{FixityConstants::CALCULATED_CHECKSUM} = :calculated_checksum, " \
-                               "#{FixityConstants::LAST_UPDATED} = :timestamp, " \
-                               "#{FixityConstants::MISMATCH} = :mismatch"
-      })
+      update_fixity_mismatch
     else
       outcome_message = "Fixity outcome not recognized"
       FixityConstants::LOGGER.error(outcome_message)
@@ -123,6 +64,104 @@ class Fixity
 
     # send sqs to medusa with result
     #SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
+  end
+
+  def get_fixity_item
+    begin
+      query_resp = FixityConstants::DYNAMODB_CLIENT.query({
+        table_name: FixityConstants::FIXITY_TABLE_NAME,
+        index_name: FixityConstants::INDEX_NAME,
+        limit: 1,
+        scan_index_forward: true,
+        expression_attribute_values: {
+          ":ready" => FixityConstants::TRUE,
+        },
+        key_condition_expression: "#{FixityConstants::FIXITY_READY} = :ready",
+      })
+      return nil if query_resp.items[0].nil?
+    rescue StandardError => e
+      error_message = "Error querying dynamodb table: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+    query_resp.items[0]
+  end
+
+  def update_fixity_ready
+    begin
+      FixityConstants::DYNAMODB_CLIENT.update_item({
+       table_name: FixityConstants::FIXITY_TABLE_NAME,
+       key: {
+         FixityConstants::S3_KEY => s3_key
+       },
+       expression_attribute_values: {
+         ":fixity_status" => FixityConstants::CALCULATING,
+         ":timestamp" => Time.now.getutc.iso8601(10)
+       },
+       update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
+                              "#{FixityConstants::LAST_UPDATED} = :timestamp "\
+                          "REMOVE #{FixityConstants::FIXITY_READY}"
+      })
+    rescue StandardError => e
+      error_message = "Error updating fixity ready and fixity status before calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+  end
+
+  def update_fixity_match(fixity_outcome, calculated_checksum)
+    FixityConstants::DYNAMODB_CLIENT.update_item({
+      table_name: FixityConstants::FIXITY_TABLE_NAME,
+      key: {
+        FixityConstants::S3_KEY => s3_key
+      },
+      expression_attribute_values: {
+       ":fixity_status" => FixityConstants::DONE,
+       ":fixity_outcome" => fixity_outcome,
+       ":calculated_checksum" => calculated_checksum,
+       ":timestamp" => Time.now.getutc.iso8601(3)
+      },
+      update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
+                             "#{FixityConstants::FIXITY_OUTCOME} = :fixity_outcome, " \
+                             "#{FixityConstants::CALCULATED_CHECKSUM} = :calculated_checksum, " \
+                             "#{FixityConstants::LAST_UPDATED} = :timestamp"
+    })
+  end
+
+  def update_fixity_mismatch(fixity_outcome, calculated_checksum)
+    FixityConstants::DYNAMODB_CLIENT.update_item({
+      table_name: FixityConstants::FIXITY_TABLE_NAME,
+      key: {
+        FixityConstants::S3_KEY => s3_key
+      },
+      expression_attribute_values: {
+       ":mismatch" => FixityConstants::TRUE,
+       ":fixity_status" => FixityConstants::DONE,
+       ":fixity_outcome" => fixity_outcome,
+       ":calculated_checksum" => calculated_checksum,
+       ":timestamp" => Time.now.getutc.iso8601(3)
+      },
+      update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
+                             "#{FixityConstants::FIXITY_OUTCOME} = :fixity_outcome, " \
+                             "#{FixityConstants::CALCULATED_CHECKSUM} = :calculated_checksum, " \
+                             "#{FixityConstants::LAST_UPDATED} = :timestamp, " \
+                             "#{FixityConstants::MISMATCH} = :mismatch"
+    })
+  end
+
+  def update_fixity_error
+    FixityConstants::DYNAMODB_CLIENT.update_item({
+      table_name: FixityConstants::FIXITY_TABLE_NAME,
+      key: {
+        FixityConstants::S3_KEY => s3_key
+      },
+      expression_attribute_values: {
+       ":error" => FixityConstants::TRUE,
+       ":fixity_status" => FixityConstants::ERROR,
+       ":timestamp" => Time.now.getutc.iso8601(3)
+      },
+      update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
+                             "#{FixityConstants::LAST_UPDATED} = :timestamp, " \
+                             "#{FixityConstants::ERROR} = :error"
+    })
   end
 end
 

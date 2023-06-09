@@ -7,6 +7,7 @@ gem "rake", "~> 13.0"
 gem "aws-sdk-dynamodb"
 
 gem "aws-sdk-s3"
+gem "aws-sdk-s3control"
 
 gem "aws-sdk-sqs"
 
