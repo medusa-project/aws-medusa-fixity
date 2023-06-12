@@ -167,7 +167,7 @@ class RestoreFiles
       begin
         message = "RESTORING: File Id= #{fixity_item.file_id}, S3 Key: #{fixity_item.s3_key}"
         FixityConstants::LOGGER.info(message)
-        FixityConstants::S3_CLIENT.restore_object({
+        restore_resp = FixityConstants::S3_CLIENT.restore_object({
           bucket: FixityConstants::BACKUP_BUCKET,
           key: fixity_item.s3_key,
           restore_request: {
@@ -181,7 +181,7 @@ class RestoreFiles
         #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
         error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.backtrace}"
         FixityConstants::LOGGER.error(error_message)
-        put_missing_key
+        put_missing_key(fixity_item)
         #SendMessage.send_message(file_id, nil, FixityConstants::FALSE, FixityConstants::FAILURE, error_message)
         next
 
@@ -192,6 +192,7 @@ class RestoreFiles
         FixityConstants::LOGGER.error(error_message)
 
       end
+      FixityConstants::LOGGER.info("Restore response for object #{fixity_item.s3_key}: #{restore_resp}")
       put_batch_item(fixity_item)
     end
     time_end = Time.now
