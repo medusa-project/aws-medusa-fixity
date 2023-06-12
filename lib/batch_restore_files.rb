@@ -31,8 +31,7 @@ class BatchRestoreFiles
     while batch_count < MAX_BATCH_COUNT && id <= max_id
       begin
         #TODO optimize to get multiple files per call to medusa DB
-        file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
-        file_row = file_result.first
+        file_row = get_file(id)
 
         if file_row.nil?
           id = id+1
@@ -45,22 +44,14 @@ class BatchRestoreFiles
 
         # break if (size + batch_size > MAX_BATCH_SIZE)
 
-        checksum = file_row["md5_sum"]
-        path = name
-        while directory_id
-          dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
-          dir_row = dir_result.first
-          dir_path = dir_row["path"]
-          path.prepend(dir_path,'/')
-          directory_id = dir_row["parent_id"]
-          parent_type = dir_row["parent_type"]
-          break if parent_type != "CfsDirectory"
-        end
-        s3_key = path.gsub(/[' ',+]/, ' ' => '%20', ',' => '%2C', '+' => '%2B')
-        file_id = id
-        initial_checksum = checksum
-        medusa_item = MedusaItem.new(s3_key, file_id, initial_checksum)
+        initial_checksum = file_row["md5_sum"]
+        path = get_path(directory_id, name)
+
+        s3_key = CGI.escape(path).gsub('%2F', '/')
+
+        medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
         put_batch_item(medusa_item)
+
         open(manifest, 'a') { |f|
           f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
         }
@@ -124,6 +115,24 @@ class BatchRestoreFiles
     done
   end
 
+  def self.get_file(id)
+    #TODO optimize to get multiple files per call to medusa DB
+    file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
+    file_result.first
+  end
+
+  def self.get_path(directory_id, path)
+    while directory_id
+      dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
+      dir_row = dir_result.first
+      dir_path = dir_row["path"]
+      path.prepend(dir_path,'/')
+      directory_id = dir_row["parent_id"]
+      parent_type = dir_row["parent_type"]
+      break if parent_type != "CfsDirectory"
+    end
+    path
+  end
 
   def self.put_medusa_id(id)
     FixityConstants::DYNAMODB_CLIENT.put_item({
@@ -162,6 +171,34 @@ class BatchRestoreFiles
     s3_resp.etag
   end
 
+  def self.get_batch_from_list(list)
+    batch = []
+    manifest = "manifest-#{Time.now.strftime('%D-%H:%M')}.csv"
+    list.each do |id|
+      file_row = get_file(id)
+      if file_row.nil?
+        FixityConstants::LOGGER.error("File with id #{id} not found in medusa DB")
+        next
+      end
+
+      directory_id = file_row["cfs_directory_id"]
+      name = file_row["name"]
+      initial_checksum = file_row["md5_sum"]
+
+      path = get_path(directory_id, name)
+      s3_key = CGI.escape(path).gsub('%2F', '/')
+
+      medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
+      put_batch_item(medusa_item)
+
+      open(manifest, 'a') { |f|
+        f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
+      }
+    end
+    etag = put_manifest(manifest)
+    send_batch_job(manifest, etag)
+  end
+
   def self.send_batch_job(manifest, etag)
     token = get_request_token + 1
     begin
@@ -179,7 +216,7 @@ class BatchRestoreFiles
           format: "Report_CSV_20180820", # accepts Report_CSV_20180820
           enabled: true, # required
           prefix: "fixity/BatchRestoreReports",
-          report_scope: "AllTasks", # accepts AllTasks, FailedTasksOnly
+          report_scope: "FailedTasksOnly", # accepts AllTasks, FailedTasksOnly
         },
         client_request_token: "#{token}", # required
         manifest: {

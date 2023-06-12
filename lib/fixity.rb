@@ -53,10 +53,10 @@ class Fixity
     case fixity_outcome
     when FixityConstants::MATCH
       #update dynamodb calculated checksum, fixity status, fixity verification
-      update_fixity_match
+      update_fixity_match(calculated_checksum)
     when FixityConstants::MISMATCH
       #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
-      update_fixity_mismatch
+      update_fixity_mismatch(calculated_checksum)
     else
       outcome_message = "Fixity outcome not recognized"
       FixityConstants::LOGGER.error(outcome_message)
@@ -107,7 +107,7 @@ class Fixity
     end
   end
 
-  def self.update_fixity_match(fixity_outcome, calculated_checksum)
+  def self.update_fixity_match(calculated_checksum)
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {
@@ -115,7 +115,7 @@ class Fixity
       },
       expression_attribute_values: {
        ":fixity_status" => FixityConstants::DONE,
-       ":fixity_outcome" => fixity_outcome,
+       ":fixity_outcome" => FixityConstants::MATCH,
        ":calculated_checksum" => calculated_checksum,
        ":timestamp" => Time.now.getutc.iso8601(3)
       },
@@ -126,7 +126,7 @@ class Fixity
     })
   end
 
-  def self.update_fixity_mismatch(fixity_outcome, calculated_checksum)
+  def self.update_fixity_mismatch(calculated_checksum)
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {
@@ -135,7 +135,7 @@ class Fixity
       expression_attribute_values: {
        ":mismatch" => FixityConstants::TRUE,
        ":fixity_status" => FixityConstants::DONE,
-       ":fixity_outcome" => fixity_outcome,
+       ":fixity_outcome" => FixityConstants::MISMATCH,
        ":calculated_checksum" => calculated_checksum,
        ":timestamp" => Time.now.getutc.iso8601(3)
       },

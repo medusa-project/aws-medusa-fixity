@@ -35,6 +35,7 @@ class RestoreFiles
     while batch_count < MAX_BATCH_COUNT && id <= max_id
       begin
         file_row = get_file(id)
+
         if file_row.nil?
           id = id+1
           next
@@ -167,7 +168,7 @@ class RestoreFiles
       begin
         message = "RESTORING: File Id= #{fixity_item.file_id}, S3 Key: #{fixity_item.s3_key}"
         FixityConstants::LOGGER.info(message)
-        restore_resp = FixityConstants::S3_CLIENT.restore_object({
+        FixityConstants::S3_CLIENT.restore_object({
           bucket: FixityConstants::BACKUP_BUCKET,
           key: fixity_item.s3_key,
           restore_request: {
@@ -188,11 +189,11 @@ class RestoreFiles
       rescue StandardError => e
         # Error requesting object restoration, add to dynamodb table for retry?
         # Send error message to medusa
-        error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
+        #TODO add to Dynamodb for retry
+        error_message = "Error restoring object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
         FixityConstants::LOGGER.error(error_message)
 
       end
-      FixityConstants::LOGGER.info("Restore response for object #{fixity_item.s3_key}: #{restore_resp}")
       put_batch_item(fixity_item)
     end
     time_end = Time.now
