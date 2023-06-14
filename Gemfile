@@ -14,3 +14,5 @@ gem "aws-sdk-sqs"
 gem "digest"
 
 gem "pg"
+
+gem "csv"

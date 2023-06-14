@@ -21,7 +21,7 @@ class Fixity
     FixityConstants::LOGGER.info(message)
 
     #update dynamodb table to remove fixity ready and set fixity status
-    update_fixity_ready
+    update_fixity_ready(s3_key)
 
     # stream s3 object through md5 calculation in 16 mb chunks
     # compare with initial md5 checksum and send medusa result via sqs
@@ -43,7 +43,7 @@ class Fixity
     rescue StandardError => e
       error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
-      update_fixity_error
+      update_fixity_error(s3_key)
       exit
     end
     #compare calculated checksum with initial checksum
@@ -53,10 +53,10 @@ class Fixity
     case fixity_outcome
     when FixityConstants::MATCH
       #update dynamodb calculated checksum, fixity status, fixity verification
-      update_fixity_match(calculated_checksum)
+      update_fixity_match(s3_key, calculated_checksum)
     when FixityConstants::MISMATCH
       #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
-      update_fixity_mismatch(calculated_checksum)
+      update_fixity_mismatch(s3_key, calculated_checksum)
     else
       outcome_message = "Fixity outcome not recognized"
       FixityConstants::LOGGER.error(outcome_message)
@@ -86,7 +86,7 @@ class Fixity
     query_resp.items[0]
   end
 
-  def self.update_fixity_ready
+  def self.update_fixity_ready(s3_key)
     begin
       FixityConstants::DYNAMODB_CLIENT.update_item({
        table_name: FixityConstants::FIXITY_TABLE_NAME,
@@ -107,7 +107,7 @@ class Fixity
     end
   end
 
-  def self.update_fixity_match(calculated_checksum)
+  def self.update_fixity_match(s3_key, calculated_checksum)
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {
@@ -126,7 +126,7 @@ class Fixity
     })
   end
 
-  def self.update_fixity_mismatch(calculated_checksum)
+  def self.update_fixity_mismatch(s3_key, calculated_checksum)
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {
@@ -147,7 +147,7 @@ class Fixity
     })
   end
 
-  def self.update_fixity_error
+  def self.update_fixity_error(s3_key)
     FixityConstants::DYNAMODB_CLIENT.update_item({
       table_name: FixityConstants::FIXITY_TABLE_NAME,
       key: {

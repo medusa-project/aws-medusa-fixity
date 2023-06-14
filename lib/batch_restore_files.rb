@@ -215,7 +215,7 @@ class BatchRestoreFiles
           bucket: FixityConstants::BACKUP_BUCKET_ARN,
           format: "Report_CSV_20180820", # accepts Report_CSV_20180820
           enabled: true, # required
-          prefix: "fixity/BatchRestoreReports",
+          prefix: FixityConstants::BATCH_PREFIX,
           report_scope: "FailedTasksOnly", # accepts AllTasks, FailedTasksOnly
         },
         client_request_token: "#{token}", # required
@@ -232,6 +232,7 @@ class BatchRestoreFiles
         priority: 10,
         role_arn: FixityConstants::BATCH_ROLE_ARN, # required
       })
+      #TODO add job_id to dyanmodb table
       batch_job_message = "Batch restore job send with id #{resp.job_id}"
       FixityConstants::LOGGER.info(batch_job_message)
     rescue StandardError => e

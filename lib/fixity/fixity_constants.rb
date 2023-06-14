@@ -21,6 +21,7 @@ class FixityConstants
   S3_CONTROL_CLIENT = Aws::S3Control::Client.new(region: REGION_WEST)
   ACCOUNT_ID = "721945215539"
   BATCH_ROLE_ARN = "arn:aws:iam::721945215539:role/fixity-demo-batch-restore-role"
+  BATCH_PREFIX = "fixity/BatchRestoreReports"
 
 
   #DYNAMODB

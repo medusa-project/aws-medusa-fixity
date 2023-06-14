@@ -3,6 +3,7 @@ class FixityConstants
   ACTION: String
   BACKUP_BUCKET: String
   BACKUP_BUCKET_ARN: String
+  BATCH_PREFIX: String
   BATCH_ROLE_ARN: String
   BULK: String
   CALCULATED_CHECKSUM: String
