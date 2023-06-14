@@ -4,6 +4,7 @@ require 'aws-sdk-s3'
 require 'aws-sdk-sqs'
 require 'aws-sdk-s3control'
 require 'pg'
+require 'cgi'
 
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'

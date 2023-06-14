@@ -1,6 +1,7 @@
 require 'aws-sdk-s3'
 require 'digest'
 require 'aws-sdk-dynamodb'
+require 'cgi'
 
 require_relative 'fixity/fixity_constants.rb'
 require_relative 'send_message.rb'
@@ -12,7 +13,8 @@ class Fixity
     #get object info from dynamodb
     fixity_item = get_fixity_item
 
-    s3_key = fixity_item[FixityConstants::S3_KEY]
+    path = fixity_item[FixityConstants::S3_KEY]
+    s3_key = CGI.unescape(path)
     file_id = fixity_item[FixityConstants::FILE_ID]
     initial_checksum = fixity_item[FixityConstants::INITIAL_CHECKSUM]
     file_size = fixity_item[FixityConstants::FILE_SIZE]
@@ -153,14 +155,17 @@ class Fixity
       key: {
         FixityConstants::S3_KEY => s3_key
       },
+      expression_attribute_names: {
+        "#E" => FixityConstants::ERROR,
+      },
       expression_attribute_values: {
-       ":error" => FixityConstants::TRUE,
-       ":fixity_status" => FixityConstants::ERROR,
-       ":timestamp" => Time.now.getutc.iso8601(3)
+        ":error" => FixityConstants::TRUE,
+        ":fixity_status" => FixityConstants::ERROR,
+        ":timestamp" => Time.now.getutc.iso8601(3)
       },
       update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
                              "#{FixityConstants::LAST_UPDATED} = :timestamp, " \
-                             "#{FixityConstants::ERROR} = :error"
+                             "#E = :error"
     })
   end
 end
