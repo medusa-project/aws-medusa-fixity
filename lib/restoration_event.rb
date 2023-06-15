@@ -3,7 +3,7 @@ require 'json'
 require 'aws-sdk-dynamodb'
 
 require_relative 'fixity/fixity_constants.rb'
-require_relative 'fixity/medusa_item.rb'
+require_relative 'fixity/batch_item.rb'
 require_relative 'restore_files.rb'
 
 class RestorationEvent
@@ -98,7 +98,7 @@ class RestorationEvent
       initial_checksum = update_item_resp.attributes[FixityConstants::INITIAL_CHECKSUM]
       message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
       FixityConstants::LOGGER.info(message)
-      item = MedusaItem.new(s3_key, file_id, initial_checksum)
+      item = BatchItem.new(s3_key, file_id, initial_checksum)
       RestoreFiles.restore_batch([item])
     end
   end

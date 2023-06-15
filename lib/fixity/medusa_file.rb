@@ -1,18 +1,23 @@
 # frozen_string_literal: true
 
-class MedusaItem
-  def initialize(s3_key, file_id, initial_checksum)
-    @s3_key = s3_key
+class MedusaFile
+  def initialize(name, file_id, directory_id, initial_checksum)
+    @name = name
     @file_id = file_id
+    @directory_id = directory_id
     @initial_checksum = initial_checksum
   end
 
-  def s3_key
-    @s3_key
+  def name
+    @name
   end
 
   def file_id
     @file_id
+  end
+
+  def directory_id
+    @directory_id
   end
 
   def initial_checksum

@@ -8,7 +8,7 @@ require 'cgi'
 
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
-require_relative 'fixity/medusa_item'
+require_relative 'fixity/batch_item'
 require_relative 'send_message'
 
 class RestoreFiles
@@ -50,8 +50,8 @@ class RestoreFiles
         # break if (size + batch_size > MAX_BATCH_SIZE)
 
         s3_key = get_path(directory_id, name)
-        medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
-        batch.push(medusa_item)
+        batch_item = BatchItem.new(s3_key, id, initial_checksum)
+        batch.push(batch_item)
 
         #TODO move to ensure to continue after error?
         id = id+1
@@ -154,8 +154,8 @@ class RestoreFiles
 
       initial_checksum = file_row["md5_sum"]
       s3_key = get_path(directory_id, name)
-      medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
-      batch.push(medusa_item)
+      batch_item = BatchItem.new(s3_key, id, initial_checksum)
+      batch.push(batch_item)
     end
     restore_batch(batch)
   end

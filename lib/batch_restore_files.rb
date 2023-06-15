@@ -8,7 +8,7 @@ require 'cgi'
 
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
-require_relative 'fixity/medusa_item'
+require_relative 'fixity/batch_item'
 require_relative 'send_message'
 class BatchRestoreFiles
   MAX_BATCH_COUNT = 1000
@@ -50,8 +50,8 @@ class BatchRestoreFiles
         # break if (size + batch_size > MAX_BATCH_SIZE)
 
         s3_key = get_path(directory_id, name)
-        medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
-        put_batch_item(medusa_item)
+        batch_item = BatchItem.new(s3_key, id, initial_checksum)
+        put_batch_item(batch_item)
 
         open(manifest, 'a') { |f|
           f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
@@ -123,10 +123,19 @@ class BatchRestoreFiles
   end
 
   def self.get_files_in_batches(id)
-    #TODO optimize to get multiple files per call to medusa DB
+    #TODO add batch size as class variable to keep track of file sizes
+    medusa_files = []
     id_iterator = id + 10
     file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id>=#{id.to_s} AND  id<=#{id_iterator}")
-    file_result.first
+    file_result.each do |file_row|
+      file_id = file_row["id"]
+      directory_id = file_row["cfs_directory_id"]
+      name = file_row["name"]
+      size = file_row["size"].to_i
+      initial_checksum = file_row["md5_sum"]
+
+      medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
+    end
   end
 
   def self.get_path(directory_id, path)
@@ -152,20 +161,20 @@ class BatchRestoreFiles
     })
   end
 
-  def self.put_batch_item(fixity_item)
+  def self.put_batch_item(batch_item)
     begin
       FixityConstants::DYNAMODB_CLIENT.put_item({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
         item: {
-          FixityConstants::S3_KEY => fixity_item.s3_key,
-          FixityConstants::FILE_ID => fixity_item.file_id,
-          FixityConstants::INITIAL_CHECKSUM => fixity_item.initial_checksum,
+          FixityConstants::S3_KEY => batch_item.s3_key,
+          FixityConstants::FILE_ID => batch_item.file_id,
+          FixityConstants::INITIAL_CHECKSUM => batch_item.initial_checksum,
           FixityConstants::RESTORATION_STATUS => FixityConstants::REQUESTED,
           FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
         }
       })
     rescue StandardError => e
-      error_message = "Error putting item in dynamodb table for #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
+      error_message = "Error putting item in dynamodb table for #{batch_item.s3_key} with ID #{batch_item.file_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
     end
   end
@@ -196,8 +205,8 @@ class BatchRestoreFiles
       path = get_path(directory_id, name)
       s3_key = CGI.escape(path).gsub('%2F', '/')
 
-      medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
-      put_batch_item(medusa_item)
+      batch_item = BatchItem.new(s3_key, id, initial_checksum)
+      put_batch_item(batch_item)
 
       open(manifest, 'a') { |f|
         f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
@@ -270,7 +279,6 @@ class BatchRestoreFiles
       return nil
     end
 
-    query_resp = get_medusa_id
     return nil if query_resp.nil?
     query_resp.items[0][FixityConstants::FILE_ID].to_i
   end
