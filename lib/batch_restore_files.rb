@@ -11,6 +11,9 @@ require_relative 'fixity/fixity_secrets'
 require_relative 'fixity/medusa_item'
 require_relative 'send_message'
 class BatchRestoreFiles
+  MAX_BATCH_COUNT = 1000
+  MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
+
   def self.get_batch
     #get information from medusa DB for a batch of files to be restored(File ID, S3 key, initial checksum)
     # medusa_item => make object with file_id, s3_key, initial_checksum
@@ -42,14 +45,11 @@ class BatchRestoreFiles
         directory_id = file_row["cfs_directory_id"]
         name = file_row["name"]
         size = file_row["size"].to_i
+        initial_checksum = file_row["md5_sum"]
 
         # break if (size + batch_size > MAX_BATCH_SIZE)
 
-        initial_checksum = file_row["md5_sum"]
-        path = get_path(directory_id, name)
-
-        s3_key = CGI.escape(path).gsub('%2F', '/')
-
+        s3_key = get_path(directory_id, name)
         medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
         put_batch_item(medusa_item)
 
@@ -122,6 +122,13 @@ class BatchRestoreFiles
     file_result.first
   end
 
+  def self.get_files_in_batches(id)
+    #TODO optimize to get multiple files per call to medusa DB
+    id_iterator = id + 10
+    file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id>=#{id.to_s} AND  id<=#{id_iterator}")
+    file_result.first
+  end
+
   def self.get_path(directory_id, path)
     while directory_id
       dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
@@ -132,7 +139,7 @@ class BatchRestoreFiles
       parent_type = dir_row["parent_type"]
       break if parent_type != "CfsDirectory"
     end
-    path
+    CGI.escape(path).gsub('%2F', '/')
   end
 
   def self.put_medusa_id(id)
@@ -226,15 +233,16 @@ class BatchRestoreFiles
                   fields: %w[Bucket Key], # accepts Ignore, Bucket, Key, VersionId
           },
           location: { # required
-                      object_arn: "#{FixityConstants::BACKUP_BUCKET_ARN}/fixity/#{manifest}", # required
-                      etag: etag, # required
+                  object_arn: "#{FixityConstants::BACKUP_BUCKET_ARN}/fixity/#{manifest}", # required
+                  etag: etag, # required
           },
         },
         priority: 10,
         role_arn: FixityConstants::BATCH_ROLE_ARN, # required
       })
-      #TODO add job_id to dyanmodb table
-      batch_job_message = "Batch restore job send with id #{resp.job_id}"
+      job_id = resp.job_id
+      put_job_id(job_id)
+      batch_job_message = "Batch restore job sent with id #{job_id}"
       FixityConstants::LOGGER.info(batch_job_message)
     rescue StandardError => e
       error_message = "Error sending batch job: #{e.message}"
@@ -273,6 +281,17 @@ class BatchRestoreFiles
       item: {
         FixityConstants::ID_TYPE => FixityConstants::CURRENT_REQUEST_TOKEN,
         FixityConstants::FILE_ID => token.to_s,
+      }
+    })
+  end
+
+  def self.put_job_id(job_id)
+    FixityConstants::DYNAMODB_CLIENT.put_item({
+      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
+      item: {
+        FixityConstants::ID_TYPE => FixityConstants::JOB_ID,
+        FixityConstants::FILE_ID => job_id,
+        FixityConstants::PROCESSED => FixityConstants::FALSE
       }
     })
   end

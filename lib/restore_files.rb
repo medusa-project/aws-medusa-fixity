@@ -4,6 +4,7 @@ require 'aws-sdk-s3'
 require 'aws-sdk-sqs'
 require 'aws-sdk-s3control'
 require 'pg'
+require 'cgi'
 
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
@@ -44,10 +45,10 @@ class RestoreFiles
         directory_id = file_row["cfs_directory_id"]
         name = file_row["name"]
         size = file_row["size"].to_i
+        initial_checksum = file_row["md5_sum"]
 
         # break if (size + batch_size > MAX_BATCH_SIZE)
 
-        initial_checksum = file_row["md5_sum"]
         s3_key = get_path(directory_id, name)
         medusa_item = MedusaItem.new(s3_key, id, initial_checksum)
         batch.push(medusa_item)
@@ -126,7 +127,7 @@ class RestoreFiles
       parent_type = dir_row["parent_type"]
       break if parent_type != "CfsDirectory"
     end
-    path
+    CGI.escape(path).gsub('%2F', '/')
   end
 
   def self.put_medusa_id(id)

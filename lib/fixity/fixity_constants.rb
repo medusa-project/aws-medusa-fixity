@@ -45,6 +45,8 @@ class FixityConstants
   CURRENT_ID = "CurrentId"
   MAX_ID = "MaxId"
   CURRENT_REQUEST_TOKEN = "CurrentRequestToken"
+  JOB_ID = "JobId"
+  PROCESSED = "Processed"
 
   #FIXITY STATUS
   CALCULATING = "CALCULATING"

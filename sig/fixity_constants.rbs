@@ -34,6 +34,7 @@ class FixityConstants
   INDEX_NAME: String
   INITIAL_CHECKSUM: String
   INITIATED: String
+  JOB_ID: String
   LAST_UPDATED: String
   LOGGER: Logger
   MATCH: String
@@ -45,6 +46,7 @@ class FixityConstants
   MISSING_KEYS_TABLE_NAME: String
   PARAMETERS: String
   PASSTHROUGH: String
+  PROCESSED: String
   REGION_EAST: String
   REGION_WEST: String
   REQUESTED: String

@@ -13,8 +13,7 @@ class Fixity
     #get object info from dynamodb
     fixity_item = get_fixity_item
 
-    path = fixity_item[FixityConstants::S3_KEY]
-    s3_key = CGI.unescape(path)
+    s3_key = fixity_item[FixityConstants::S3_KEY]
     file_id = fixity_item[FixityConstants::FILE_ID]
     initial_checksum = fixity_item[FixityConstants::INITIAL_CHECKSUM]
     file_size = fixity_item[FixityConstants::FILE_SIZE]
@@ -25,31 +24,9 @@ class Fixity
     #update dynamodb table to remove fixity ready and set fixity status
     update_fixity_ready(s3_key)
 
-    # stream s3 object through md5 calculation in 16 mb chunks
-    # compare with initial md5 checksum and send medusa result via sqs
-    md5 = Digest::MD5.new
-    download_size_start = 0
-    download_size_end = 16*MEGABYTE
-    begin
-      while download_size_start < file_size
-          object_part = FixityConstants::S3_CLIENT.get_object({
-              bucket: FixityConstants::BACKUP_BUCKET, # required
-              key: s3_key, # required
-              range: "bytes=#{download_size_start}-#{download_size_end}"
-          })
-          md5 << object_part.body.read
-          download_size_end = download_size_end+1
-          download_size_start = download_size_end
-          download_size_end = download_size_end+16*MEGABYTE
-      end
-    rescue StandardError => e
-      error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-      update_fixity_error(s3_key)
-      exit
-    end
     #compare calculated checksum with initial checksum
-    calculated_checksum = md5.hexdigest
+    calculated_checksum = calculate_checksum(s3_key, file_id, file_size)
+
     fixity_outcome = (calculated_checksum == initial_checksum) ? FixityConstants::MATCH : FixityConstants::MISMATCH
 
     case fixity_outcome
@@ -107,6 +84,33 @@ class Fixity
       error_message = "Error updating fixity ready and fixity status before calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
     end
+  end
+
+  def self.calculate_checksum(s3_key, file_id, file_size)
+    # stream s3 object through md5 calculation in 16 mb chunks
+    # compare with initial md5 checksum and send medusa result via sqs
+    md5 = Digest::MD5.new
+    download_size_start = 0
+    download_size_end = 16*MEGABYTE
+    begin
+      while download_size_start < file_size
+        object_part = FixityConstants::S3_CLIENT.get_object({
+          bucket: FixityConstants::BACKUP_BUCKET, # required
+          key: CGI.unescape(s3_key), # required
+          range: "bytes=#{download_size_start}-#{download_size_end}"
+        })
+        md5 << object_part.body.read
+        download_size_end = download_size_end+1
+        download_size_start = download_size_end
+        download_size_end = download_size_end+16*MEGABYTE
+      end
+    rescue StandardError => e
+      error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+      update_fixity_error(s3_key)
+      exit
+    end
+    md5.hexdigest
   end
 
   def self.update_fixity_match(s3_key, calculated_checksum)

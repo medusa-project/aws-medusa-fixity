@@ -16,8 +16,6 @@ class ProcessBatchReports
 
     manifest_key = get_manifest_key(job_id)
 
-
-
   end
 
   #TODO get job id from dynamodb table
@@ -25,7 +23,7 @@ class ProcessBatchReports
     #return job id from dyanamodb
   end
 
-  #TODO refeactor to separate duration from failures
+  #TODO refactor to separate duration from failures, add in check to see if job is complete
   def self.get_tasks_failed(job_id)
     describe_resp = FixityConstants::S3_CONTROL_CLIENT.describe_job(account_id: FixityConstants::ACCOUNT_ID, job_id: job_id)
     job_duration = describe_resp.job.progress_summary.timers.elapsed_time_in_active_seconds
@@ -36,9 +34,9 @@ class ProcessBatchReports
 
   def self.get_manifest_key(job_id)
     s3_json_resp = S3_CLIENT.get_object({
-                                bucket: FixityConstants::BACKUP_BUCKET, # required
-                                key: "#{FixityConstants::BATCH_PREFIX}/job-#{job_id}/manifest.json", # required
-                              })
+      bucket: FixityConstants::BACKUP_BUCKET, # required
+      key: "#{FixityConstants::BATCH_PREFIX}/job-#{job_id}/manifest.json", # required
+    })
     key = JSON.parse(s3_json_resp.body.read)["Results"][0]["Key"]
 
     return key
