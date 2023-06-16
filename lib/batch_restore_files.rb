@@ -30,7 +30,7 @@ class BatchRestoreFiles
 
     #query medusa and add files to batch
     batch_count = 0
-    manifest = "manifest-#{Time.now.strftime('%D-%H:%M')}.csv"
+    manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
     # while batch_size < MAX_BATCH_SIZE && batch_count < MAX_BATCH_COUNT && id <= max_id
     while batch_count < MAX_BATCH_COUNT && id <= max_id
       begin
@@ -190,8 +190,7 @@ class BatchRestoreFiles
   end
 
   def self.get_batch_from_list(list)
-    manifest = "manifest-#{Time.now.strftime('%D-%H:%M')}.csv"
-    manifest_file = File.new(manifest, 'a')
+    manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
     list.each do |id|
       file_row = get_file(id)
       if file_row.nil?
@@ -208,9 +207,10 @@ class BatchRestoreFiles
       batch_item = BatchItem.new(s3_key, id, initial_checksum)
       put_batch_item(batch_item)
 
-      manifest_file.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
+      open(manifest, 'a') { |f|
+        f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
+      }
     end
-    manifest_file.close
     etag = put_manifest(manifest)
     send_batch_job(manifest, etag)
   end
