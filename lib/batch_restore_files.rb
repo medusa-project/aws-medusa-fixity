@@ -234,7 +234,7 @@ class BatchRestoreFiles
           prefix: FixityConstants::BATCH_PREFIX,
           report_scope: "FailedTasksOnly", # accepts AllTasks, FailedTasksOnly
         },
-        client_request_token: "#{token}", # required
+        client_request_token: "15", # required
         manifest: {
           spec: { # required
                   format: "S3BatchOperations_CSV_20180820", # required, accepts S3BatchOperations_CSV_20180820, S3InventoryReport_CSV_20161130
@@ -253,9 +253,10 @@ class BatchRestoreFiles
       batch_job_message = "Batch restore job sent with id #{job_id}"
       FixityConstants::LOGGER.info(batch_job_message)
     rescue StandardError => e
-      error_message = "Error sending batch job: #{e.backtrace}"
+      error_message = "Error sending batch job: #{e.full_message}"
       FixityConstants::LOGGER.error(error_message)
     end
+    FixityConstants::LOGGER.info(resp)
     put_request_token(token)
   end
 
