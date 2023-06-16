@@ -238,7 +238,7 @@ class BatchRestoreFiles
         manifest: {
           spec: { # required
                   format: "S3BatchOperations_CSV_20180820", # required, accepts S3BatchOperations_CSV_20180820, S3InventoryReport_CSV_20161130
-                  fields: %w[Bucket Key], # accepts Ignore, Bucket, Key, VersionId
+                  fields: ["Bucket","Key"], # accepts Ignore, Bucket, Key, VersionId
           },
           location: { # required
                   object_arn: "#{FixityConstants::BACKUP_BUCKET_ARN}/fixity/#{manifest}", # required
@@ -253,7 +253,7 @@ class BatchRestoreFiles
       batch_job_message = "Batch restore job sent with id #{job_id}"
       FixityConstants::LOGGER.info(batch_job_message)
     rescue StandardError => e
-      error_message = "Error sending batch job: #{e.message}"
+      error_message = "Error sending batch job: #{e.backtrace}"
       FixityConstants::LOGGER.error(error_message)
     end
     put_request_token(token)
