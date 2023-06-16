@@ -128,6 +128,7 @@ class BatchRestoreFiles
     id_iterator = id + 10
     file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id>=#{id.to_s} AND  id<=#{id_iterator}")
     file_result.each do |file_row|
+      next if file_row.nil?
       file_id = file_row["id"]
       directory_id = file_row["cfs_directory_id"]
       name = file_row["name"]
@@ -202,8 +203,7 @@ class BatchRestoreFiles
       name = file_row["name"]
       initial_checksum = file_row["md5_sum"]
 
-      path = get_path(directory_id, name)
-      s3_key = CGI.escape(path).gsub('%2F', '/')
+      s3_key = get_path(directory_id, name)
 
       batch_item = BatchItem.new(s3_key, id, initial_checksum)
       put_batch_item(batch_item)

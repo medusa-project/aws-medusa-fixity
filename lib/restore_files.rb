@@ -171,7 +171,7 @@ class RestoreFiles
         FixityConstants::LOGGER.info(message)
         FixityConstants::S3_CLIENT.restore_object({
           bucket: FixityConstants::BACKUP_BUCKET,
-          key: fixity_item.s3_key,
+          key: CGI.unescape(fixity_item.s3_key),
           restore_request: {
             days: 1,
             glacier_job_parameters: {
@@ -181,7 +181,7 @@ class RestoreFiles
         })
       rescue Aws::S3::Errors::NoSuchKey => e
         #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
-        error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.backtrace}"
+        error_message = "Error getting object #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
         FixityConstants::LOGGER.error(error_message)
         put_missing_key(fixity_item)
         #SendMessage.send_message(file_id, nil, FixityConstants::FALSE, FixityConstants::FAILURE, error_message)
