@@ -89,6 +89,7 @@ class RestorationEvent
     handle_expiration(update_item_resp)
   end
 
+  #TODO implement for batch processing
   def self.handle_expiration(update_item_resp)
     fixity_status = update_item_resp.attributes[FixityConstants::FIXITY_STATUS]
     #TODO check this logic

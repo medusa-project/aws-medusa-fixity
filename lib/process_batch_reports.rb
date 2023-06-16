@@ -11,6 +11,7 @@ class ProcessBatchReports
 
   def self.process_failures
     job_id = get_job_id
+
     job_failures = get_tasks_failed(job_id)
     return nil if job_failures.zero?
 
@@ -20,12 +21,22 @@ class ProcessBatchReports
 
   #TODO get job id from dynamodb table
   def self.get_job_id
-    #return job id from dyanamodb
+    query_resp= FixityConstants::DYNAMODB_CLIENT.query({
+      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
+      limit: 1,
+      scan_index_forward: true,
+      expression_attribute_values: {
+        ":job_id" => FixityConstants::JOB_ID,
+      },
+      key_condition_expression: "#{FixityConstants::ID_TYPE} = :job_id",
+    })
+    puts query_resp
   end
 
   #TODO refactor to separate duration from failures, add in check to see if job is complete
   def self.get_tasks_failed(job_id)
     describe_resp = FixityConstants::S3_CONTROL_CLIENT.describe_job(account_id: FixityConstants::ACCOUNT_ID, job_id: job_id)
+    job_status = describe_resp.job.status
     job_duration = describe_resp.job.progress_summary.timers.elapsed_time_in_active_seconds
     job_tasks = describe_resp.job.progress_summary.total_number_of_tasks
     FixityConstants::LOGGER.info("Batch restoration job duration to process #{job_tasks} files: #{job_duration}")
