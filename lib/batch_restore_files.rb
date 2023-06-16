@@ -191,6 +191,7 @@ class BatchRestoreFiles
 
   def self.get_batch_from_list(list)
     manifest = "manifest-#{Time.now.strftime('%D-%H:%M')}.csv"
+    # manifest_file = File.new(manifest, 'a')
     list.each do |id|
       file_row = get_file(id)
       if file_row.nil?
@@ -207,7 +208,7 @@ class BatchRestoreFiles
       batch_item = BatchItem.new(s3_key, id, initial_checksum)
       put_batch_item(batch_item)
 
-      open(manifest, 'a') { |f|
+      open(manifest, 'a+') { |f|
         f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
       }
     end
