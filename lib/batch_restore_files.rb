@@ -190,7 +190,6 @@ class BatchRestoreFiles
   end
 
   def self.get_batch_from_list(list)
-    batch = []
     manifest = "manifest-#{Time.now.strftime('%D-%H:%M')}.csv"
     list.each do |id|
       file_row = get_file(id)
