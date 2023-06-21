@@ -235,7 +235,7 @@ class BatchRestoreFiles
           prefix: FixityConstants::BATCH_PREFIX,
           report_scope: "FailedTasksOnly", # accepts AllTasks, FailedTasksOnly
         },
-        client_request_token: token, # required
+        client_request_token: "#{token}", # required
         manifest: {
           spec: { # required
                   format: "S3BatchOperations_CSV_20180820", # required, accepts S3BatchOperations_CSV_20180820, S3InventoryReport_CSV_20161130
