@@ -77,7 +77,8 @@ class BatchRestoreFiles
 
     FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
     etag = put_manifest(manifest)
-    send_batch_job(manifest, etag)
+    FixityConstants::LOGGER.info("Manifest etag: #{etag}")
+    #send_batch_job(manifest, etag)
   end
 
   def self.get_medusa_id
