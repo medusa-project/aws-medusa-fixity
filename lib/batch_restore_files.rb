@@ -142,7 +142,7 @@ class BatchRestoreFiles
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    return file_directories
+    return file_directories.uniq!
   end
 
   def self.get_path(directory_id, path)
@@ -161,17 +161,18 @@ class BatchRestoreFiles
   def self.get_path_hash(file_directories)
     directories = Hash.new
     file_directories.each do |directory_id|
-      path = ""
+      path = String.new
+      file_directory = directory_id
       while directory_id
         dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
         dir_row = dir_result.first
         dir_path = dir_row["path"]
-        path.prepend(dir_path,'/')
+        path.prepend(dir_path,"/")
         directory_id = dir_row["parent_id"]
         parent_type = dir_row["parent_type"]
         break if parent_type != "CfsDirectory"
       end
-      directories[directory_id] = CGI.escape(path).gsub('%2F', '/')
+      directories[file_directory] = CGI.escape(path).gsub('%2F', '/')
     end
     return directories
   end
