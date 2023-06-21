@@ -77,8 +77,7 @@ class BatchRestoreFiles
 
     FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
     etag = put_manifest(manifest)
-    FixityConstants::LOGGER.info("Manifest etag: #{etag}")
-    #send_batch_job(manifest, etag)
+    send_batch_job(manifest, etag)
   end
 
   def self.get_medusa_id
@@ -117,6 +116,9 @@ class BatchRestoreFiles
     done
   end
 
+  def self.generate_manifest
+
+  end
   def self.get_file(id)
     #TODO optimize to get multiple files per call to medusa DB
     file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
@@ -126,6 +128,7 @@ class BatchRestoreFiles
   def self.get_files_in_batches(id)
     #TODO add batch size as class variable to keep track of file sizes
     medusa_files = []
+    file_directories = []
     id_iterator = id + 10
     file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id>=#{id.to_s} AND  id<=#{id_iterator}")
     file_result.each do |file_row|
@@ -135,9 +138,10 @@ class BatchRestoreFiles
       name = file_row["name"]
       size = file_row["size"].to_i
       initial_checksum = file_row["md5_sum"]
-
+      file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
+    return file_directories
   end
 
   def self.get_path(directory_id, path)
@@ -151,6 +155,24 @@ class BatchRestoreFiles
       break if parent_type != "CfsDirectory"
     end
     CGI.escape(path).gsub('%2F', '/')
+  end
+
+  def self.get_path_hash(file_directories)
+    directories = Hash.new
+    file_directories.each do |directory_id|
+      path = ""
+      while directory_id
+        dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
+        dir_row = dir_result.first
+        dir_path = dir_row["path"]
+        path.prepend(dir_path,'/')
+        directory_id = dir_row["parent_id"]
+        parent_type = dir_row["parent_type"]
+        break if parent_type != "CfsDirectory"
+      end
+      directories[directory_id] = CGI.escape(path).gsub('%2F', '/')
+    end
+    return directories
   end
 
   def self.put_medusa_id(id)
