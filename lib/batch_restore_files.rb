@@ -9,6 +9,7 @@ require 'cgi'
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
 require_relative 'fixity/batch_item'
+require_relative 'fixity/medusa_file'
 require_relative 'send_message'
 class BatchRestoreFiles
   MAX_BATCH_COUNT = 1000
