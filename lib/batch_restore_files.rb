@@ -12,14 +12,12 @@ require_relative 'fixity/batch_item'
 require_relative 'fixity/medusa_file'
 require_relative 'send_message'
 class BatchRestoreFiles
-  MAX_BATCH_COUNT = 1000
+  MAX_BATCH_COUNT = 5000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
 
   def self.get_batch
     #get information from medusa DB for a batch of files to be restored(File ID, S3 key, initial checksum)
     # medusa_item => make object with file_id, s3_key, initial_checksum
-    batch_size = 0
-
     time_start = Time.now
     id = get_medusa_id
     return nil if id.nil?
@@ -29,8 +27,9 @@ class BatchRestoreFiles
 
     evaluate_done(id, max_id) #TODO return if true?
 
-    #query medusa and add files to batch
+    batch_size = 0
     batch_count = 0
+    #query medusa and add files to batch
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
     # while batch_size < MAX_BATCH_SIZE && batch_count < MAX_BATCH_COUNT && id <= max_id
     while batch_count < MAX_BATCH_COUNT && id <= max_id
@@ -81,6 +80,41 @@ class BatchRestoreFiles
     send_batch_job(manifest, etag)
   end
 
+  def self.get_batch_restore
+    time_start = Time.now
+    id = get_medusa_id
+    return nil if id.nil?
+
+    max_id = get_max_id
+    return nil if max_id.nil?
+
+    evaluate_done(id, max_id) #TODO return if true?
+
+    batch_size = 0
+    batch_count = 0
+    manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
+    batch_continue = true
+    while batch_continue
+      #TODO limit to 1k at a time
+      id_iterator, batch_continue  = get_id_iterator(id, max_id, batch_count)
+      file_directories, medusa_files = get_files_in_batches(id, id_iterator)
+      batch_count = batch_count + medusa_files.size
+      id = id_iterator
+      directories = get_path_hash(file_directories)
+      batch = generate_manifest(manifest, medusa_files, directories)
+      put_items_in_dynamodb(batch)
+    end
+
+    put_medusa_id(id)
+
+    time_end = Time.now
+    duration = time_end - time_start
+
+    FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
+    etag = put_manifest(manifest)
+    send_batch_job(manifest, etag)
+  end
+
   def self.get_medusa_id
     begin
       #Get medusa id to start next batch from dynamodb
@@ -117,20 +151,31 @@ class BatchRestoreFiles
     done
   end
 
+  def self.get_id_iterator(id, max_id, batch_count)
+    temp_itr = id + 1000
+    count_left = id + (MAX_BATCH_COUNT - batch_count)
+    if temp_itr < max_id and temp_itr < count_left
+      return temp_itr, true
+    elsif temp_itr >= max_id
+      return max_id, false
+    else
+      return count_left, false
+    end
+  end
+
   def self.get_file(id)
     #TODO optimize to get multiple files per call to medusa DB
     file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
     file_result.first
   end
 
-  def self.get_files_in_batches(id)
+  def self.get_files_in_batches(id, id_iterator)
     #TODO add batch size as class variable to keep track of file sizes
     # expand to take batch size into account
     # put medusa id in dynamodb at the end
     medusa_files = []
     file_directories = []
-    id_iterator = id + 10
-    file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id>=#{id.to_s} AND  id<=#{id_iterator}")
+    file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id>#{id.to_s} AND  id<=#{id_iterator}")
     file_result.each do |file_row|
       next if file_row.nil?
       file_id = file_row["id"]
@@ -141,7 +186,7 @@ class BatchRestoreFiles
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    return file_directories.uniq!
+    return file_directories.uniq!, medusa_files
   end
 
   def self.get_path(directory_id, path)
@@ -176,8 +221,8 @@ class BatchRestoreFiles
     return directories
   end
 
-  def self.generate_manifest(medusa_files, directories)
-    manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
+  def self.generate_manifest(manifest, medusa_files, directories)
+    batch = []
     medusa_files.each do |medusa_file|
       directory_path = directories["#{medusa_file.directory_id}"]
       path = directory_path + medusa_file.name
@@ -185,10 +230,17 @@ class BatchRestoreFiles
       open(manifest, 'a') { |f|
         f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
       }
-      batch_item = BatchItem.new(s3_key, medusa_file.id, medusa_file.initial_checksum)
-      put_batch_item(batch_item)
+      batch_hash = {
+        FixityConstants::S3_KEY => s3_key,
+        FixityConstants::FILE_ID => medusa_file.id,
+        FixityConstants::INITIAL_CHECKSUM => medusa_file.initial_checksum,
+        FixityConstants::RESTORATION_STATUS => FixityConstants::REQUESTED,
+        FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
+      }
+      # put_batch_item(batch_item)
+      batch.push(batch_hash)
     end
-    return manifest
+    return batch
   end
 
   def self.put_medusa_id(id)
@@ -216,6 +268,35 @@ class BatchRestoreFiles
       })
     rescue StandardError => e
       error_message = "Error putting item in dynamodb table for #{batch_item.s3_key} with ID #{batch_item.file_id}: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+  end
+
+  def self.put_items_in_dynamodb(batch)
+    put_requests = []
+    batch.each do |batch_hash|
+      put_requests << {
+        put_request: {
+          item: batch_hash
+        }
+      }
+      if put_requests.size == 25
+        batch_put_items(put_requests)
+        put_requests.clear
+      end
+    end
+  end
+
+  #TODO handle returned unprocessed_items
+  def self.batch_put_items(put_requests)
+    begin
+      resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
+         request_items: { # required
+          FixityConstants::FIXITY_TABLE_NAME => put_requests
+         }
+       })
+    rescue StandardError => e
+      error_message = "Error putting batch items in dynamodb table: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
     end
   end
