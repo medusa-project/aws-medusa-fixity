@@ -311,29 +311,23 @@ class BatchRestoreFiles
   end
 
   def self.get_batch_from_list(list)
-    manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
+    medusa_files = []
+    file_directories = []
     list.each do |id|
       file_row = get_file(id)
       if file_row.nil?
         FixityConstants::LOGGER.error("File with id #{id} not found in medusa DB")
         next
       end
-
+      file_id = file_row["id"]
       directory_id = file_row["cfs_directory_id"]
       name = file_row["name"]
+      size = file_row["size"].to_i
       initial_checksum = file_row["md5_sum"]
-
-      s3_key = get_path(directory_id, name)
-
-      batch_item = BatchItem.new(s3_key, id, initial_checksum)
-      put_batch_item(batch_item)
-
-      open(manifest, 'a') { |f|
-        f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
-      }
+      file_directories.push(directory_id)
+      medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    etag = put_manifest(manifest)
-    send_batch_job(manifest, etag)
+    return file_directories.uniq!, medusa_files
   end
 
   def self.send_batch_job(manifest, etag)
