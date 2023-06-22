@@ -232,7 +232,7 @@ class BatchRestoreFiles
       }
       batch_hash = {
         FixityConstants::S3_KEY => s3_key,
-        FixityConstants::FILE_ID => medusa_file.id,
+        FixityConstants::FILE_ID => medusa_file.file_id,
         FixityConstants::INITIAL_CHECKSUM => medusa_file.initial_checksum,
         FixityConstants::RESTORATION_STATUS => FixityConstants::REQUESTED,
         FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
