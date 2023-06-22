@@ -117,9 +117,6 @@ class BatchRestoreFiles
     done
   end
 
-  def self.generate_manifest
-
-  end
   def self.get_file(id)
     #TODO optimize to get multiple files per call to medusa DB
     file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
@@ -128,6 +125,8 @@ class BatchRestoreFiles
 
   def self.get_files_in_batches(id)
     #TODO add batch size as class variable to keep track of file sizes
+    # expand to take batch size into account
+    # put medusa id in dynamodb at the end
     medusa_files = []
     file_directories = []
     id_iterator = id + 10
@@ -172,9 +171,24 @@ class BatchRestoreFiles
         parent_type = dir_row["parent_type"]
         break if parent_type != "CfsDirectory"
       end
-      directories[file_directory] = CGI.escape(path).gsub('%2F', '/')
+      directories[file_directory] = path
     end
     return directories
+  end
+
+  def self.generate_manifest(medusa_files, directories)
+    manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
+    medusa_files.each do |medusa_file|
+      directory_path = directories["#{medusa_file.directory_id}"]
+      path = directory_path + medusa_file.name
+      s3_key = CGI.escape(path).gsub('%2F', '/')
+      open(manifest, 'a') { |f|
+        f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
+      }
+      batch_item = BatchItem.new(s3_key, medusa_file.id, medusa_file.initial_checksum)
+      put_batch_item(batch_item)
+    end
+    return manifest
   end
 
   def self.put_medusa_id(id)
@@ -188,6 +202,7 @@ class BatchRestoreFiles
   end
 
   def self.put_batch_item(batch_item)
+    #TODO expand to put items in batches
     begin
       FixityConstants::DYNAMODB_CLIENT.put_item({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
