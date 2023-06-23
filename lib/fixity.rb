@@ -46,6 +46,7 @@ class Fixity
   end
 
   def self.get_fixity_item
+    #TODO expand to query multiple fixity items at a time
     begin
       query_resp = FixityConstants::DYNAMODB_CLIENT.query({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
