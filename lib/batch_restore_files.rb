@@ -82,7 +82,7 @@ class BatchRestoreFiles
 
   def self.get_batch_restore
     time_start = Time.now
-    id = get_medusa_id
+    id = 8610 #get_medusa_id
     return nil if id.nil?
 
     max_id = get_max_id
@@ -109,14 +109,14 @@ class BatchRestoreFiles
       put_items_in_dynamodb(batch)
     end
 
-    put_medusa_id(id)
+    #put_medusa_id(id)
 
     time_end = Time.now
     duration = time_end - time_start
 
     FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
-    etag = put_manifest(manifest)
-    send_batch_job(manifest, etag)
+    #etag = put_manifest(manifest)
+    #send_batch_job(manifest, etag)
   end
 
   def self.get_medusa_id
