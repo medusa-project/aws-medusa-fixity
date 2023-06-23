@@ -12,7 +12,7 @@ require_relative 'fixity/batch_item'
 require_relative 'fixity/medusa_file'
 require_relative 'send_message'
 class BatchRestoreFiles
-  MAX_BATCH_COUNT = 30 #5000
+  MAX_BATCH_COUNT = 5000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
 
   def self.get_batch
@@ -82,7 +82,7 @@ class BatchRestoreFiles
 
   def self.get_batch_restore
     time_start = Time.now
-    id = 8610 #get_medusa_id
+    id = get_medusa_id
     return nil if id.nil?
 
     max_id = get_max_id
@@ -95,28 +95,23 @@ class BatchRestoreFiles
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
     batch_continue = true
     while batch_continue
-      FixityConstants::LOGGER.info("Loop start ID: #{id}")
       id_iterator, batch_continue  = get_id_iterator(id, max_id, batch_count)
-      FixityConstants::LOGGER.info("ID iterator: #{id_iterator}, batch continue: #{batch_continue}")
       file_directories, medusa_files = get_files_in_batches(id, id_iterator)
-      FixityConstants::LOGGER.info("Medusa file size: #{medusa_files.size}")
       batch_count = batch_count + medusa_files.size
-      FixityConstants::LOGGER.info("Batch count: #{batch_count}")
       id = id_iterator
-      FixityConstants::LOGGER.info("Loop end ID: #{id}")
       directories = get_path_hash(file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
       put_items_in_dynamodb(batch)
     end
 
-    #put_medusa_id(id)
+    put_medusa_id(id)
 
     time_end = Time.now
     duration = time_end - time_start
 
     FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
-    #etag = put_manifest(manifest)
-    #send_batch_job(manifest, etag)
+    etag = put_manifest(manifest)
+    send_batch_job(manifest, etag)
   end
 
   def self.get_medusa_id
@@ -156,7 +151,7 @@ class BatchRestoreFiles
   end
 
   def self.get_id_iterator(id, max_id, batch_count)
-    temp_itr = id + 25 #1000
+    temp_itr = id + 1000
     count_left = id + (MAX_BATCH_COUNT - batch_count)
     if temp_itr < max_id and temp_itr < count_left
       return temp_itr, true
