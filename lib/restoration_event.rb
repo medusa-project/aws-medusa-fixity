@@ -8,6 +8,7 @@ require_relative 'restore_files.rb'
 
 class RestorationEvent
   def self.handle_message
+    #TODO query for file id? Unsure if necessary or helpful
     response = FixityConstants::SQS_CLIENT_WEST.receive_message(queue_url: FixityConstants::S3_QUEUE_URL,
                                                                 max_number_of_messages: 10,
                                                                 visibility_timeout: 300)
@@ -95,7 +96,7 @@ class RestorationEvent
     #TODO check this logic
     if fixity_status != FixityConstants::DONE && fixity_status != FixityConstants::ERROR
       s3_key = update_item_resp.attributes[FixityConstants::S3_KEY]
-      file_id = update_item_resp.attributes[FixityConstants::FILE_ID]
+      file_id = update_item_resp.attributes[FixityConstants::FILE_ID].to_i
       initial_checksum = update_item_resp.attributes[FixityConstants::INITIAL_CHECKSUM]
       message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
       FixityConstants::LOGGER.info(message)

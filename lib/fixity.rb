@@ -14,7 +14,7 @@ class Fixity
     fixity_item = get_fixity_item
 
     s3_key = fixity_item[FixityConstants::S3_KEY]
-    file_id = fixity_item[FixityConstants::FILE_ID]
+    file_id = fixity_item[FixityConstants::FILE_ID].to_i
     initial_checksum = fixity_item[FixityConstants::INITIAL_CHECKSUM]
     file_size = fixity_item[FixityConstants::FILE_SIZE]
 
