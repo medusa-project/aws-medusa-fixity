@@ -45,6 +45,47 @@ class Fixity
     #SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
   end
 
+  def self.run_fixity_batch
+    #get fixity ready batch info from dynamodb
+    fixity_batch = get_fixity_batch
+
+    #update dynamodb table to remove fixity ready and set fixity status
+    update_fixity_ready_batch = get_update_fixity_ready_batch(fixity_batch)
+    batch_put_items(update_fixity_ready_batch)
+
+    fixity_batch.each do |fixity_item|
+
+      s3_key = fixity_item[FixityConstants::S3_KEY]
+      file_id = fixity_item[FixityConstants::FILE_ID].to_i
+      initial_checksum = fixity_item[FixityConstants::INITIAL_CHECKSUM]
+      file_size = fixity_item[FixityConstants::FILE_SIZE]
+
+      message = "FIXITY: File id #{file_id}, S3 key #{s3_key}"
+      FixityConstants::LOGGER.info(message)
+
+
+      #compare calculated checksum with initial checksum
+      calculated_checksum = calculate_checksum(s3_key, file_id, file_size)
+
+      fixity_outcome = (calculated_checksum == initial_checksum) ? FixityConstants::MATCH : FixityConstants::MISMATCH
+
+      case fixity_outcome
+      when FixityConstants::MATCH
+        #update dynamodb calculated checksum, fixity status, fixity verification
+        update_fixity_match(s3_key, calculated_checksum)
+      when FixityConstants::MISMATCH
+        #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
+        update_fixity_mismatch(s3_key, calculated_checksum)
+      else
+        outcome_message = "Fixity outcome not recognized"
+        FixityConstants::LOGGER.error(outcome_message)
+      end
+
+      # send sqs to medusa with result
+      #SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
+    end
+  end
+
   def self.get_fixity_item
     #TODO expand to query multiple fixity items at a time
     begin
@@ -66,6 +107,41 @@ class Fixity
     query_resp.items[0]
   end
 
+  def self.get_fixity_batch
+    #TODO expand to query multiple fixity items at a time
+    begin
+      query_resp = FixityConstants::DYNAMODB_CLIENT.query({
+        table_name: FixityConstants::FIXITY_TABLE_NAME,
+        index_name: FixityConstants::INDEX_NAME,
+        limit: 10,
+        scan_index_forward: true,
+        expression_attribute_values: {
+          ":ready" => FixityConstants::TRUE,
+        },
+        key_condition_expression: "#{FixityConstants::FIXITY_READY} = :ready",
+      })
+      return nil if query_resp.items.nil?
+    rescue StandardError => e
+      error_message = "Error querying dynamodb table: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+    query_resp.items
+  end
+
+  def self.get_update_fixity_ready_batch(fixity_batch)
+    put_requests = []
+    fixity_batch.each do |fixity_item|
+      fixity_item[FixityConstants::LAST_UPDATED] = Time.now.getutc.iso8601(10)
+      fixity_item[FixityConstants::FIXITY_STATUS] = FixityConstants::CALCULATING
+      fixity_item.delete(FixityConstants::FIXITY_READY)
+      put_requests << {
+        put_request: {
+          item: fixity_item
+        }
+      }
+    end
+    return put_requests
+  end
   def self.update_fixity_ready(s3_key)
     begin
       FixityConstants::DYNAMODB_CLIENT.update_item({
@@ -83,6 +159,20 @@ class Fixity
       })
     rescue StandardError => e
       error_message = "Error updating fixity ready and fixity status before calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+  end
+
+  #TODO handle returned unprocessed_items
+  def self.batch_put_items(put_requests)
+    begin
+      resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
+        request_items: { # required
+          FixityConstants::FIXITY_TABLE_NAME => put_requests
+        }
+      })
+    rescue StandardError => e
+      error_message = "Error putting batch update fixity items in dynamodb table: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
     end
   end

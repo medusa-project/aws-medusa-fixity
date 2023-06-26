@@ -16,6 +16,7 @@ class ProcessBatchReports
     return nil if job_failures.zero?
 
     manifest_key = get_manifest_key(job_id)
+    parse_completion_report(manifest_key)
 
   end
 
@@ -88,7 +89,7 @@ class ProcessBatchReports
       FixityConstants::LOGGER.error(error_message)
       return nil
     end
-    query_resp[0]
+    query_resp[0]["FileId"]
   end
 
   def self.put_error(key, error)
