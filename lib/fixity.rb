@@ -113,7 +113,7 @@ class Fixity
       query_resp = FixityConstants::DYNAMODB_CLIENT.query({
         table_name: FixityConstants::FIXITY_TABLE_NAME,
         index_name: FixityConstants::INDEX_NAME,
-        limit: 10,
+        limit: 25,
         scan_index_forward: true,
         expression_attribute_values: {
           ":ready" => FixityConstants::TRUE,
