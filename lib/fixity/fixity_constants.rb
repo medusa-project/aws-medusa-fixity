@@ -48,6 +48,11 @@ class FixityConstants
   JOB_ID = "JobId"
   PROCESSED = "Processed"
 
+  #ERROR DYNAMODB
+  ERR_CODE = "ErrorCode"
+  HTTPS_STATUS_CODE = "HTTPSStatusCode"
+
+
   #FIXITY STATUS
   CALCULATING = "CALCULATING"
   DONE = "DONE"

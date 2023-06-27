@@ -16,8 +16,10 @@ class ProcessBatchReports
     return nil if job_failures.zero?
 
     manifest_key = get_manifest_key(job_id)
-    parse_completion_report(manifest_key)
+    error_batch = parse_completion_report(manifest_key)
+    return nil if error_batch.empty?
 
+    put_errors_in_dynamodb(error_batch)
   end
 
   #TODO get job id from dynamodb table
@@ -62,12 +64,22 @@ class ProcessBatchReports
                        response_target: './report.csv',
                      })
     batch_completion_table = CSV.new(File.read("report.csv"))
+    error_batch = []
     batch_completion_table.each do |row|
       bucket, key, version_id, task_status, error_code, https_status_code, result_message = row
-      error_message = "Object #{key} failed during restoration job with error #{error_code}:#{https_status_code}"
+      file_id = get_file_id(key)
+      error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{error_code}:#{https_status_code}"
       FixityConstants::LOGGER.error(error_message)
-      #TODO handle errors with dynamodb
+      error_hash = {
+        FixityConstants::S3_KEY => key,
+        FixityConstants::FILE_ID => file_id,
+        FixityConstants::ERR_CODE => error_code,
+        FixityConstants::HTTPS_STATUS_CODE => https_status_code,
+        FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
+      }
+      error_batch.push(error_hash)
     end
+    return error_batch
   end
 
   #TODO implement get file_id
@@ -92,15 +104,33 @@ class ProcessBatchReports
     query_resp[0]["FileId"]
   end
 
-  def self.put_error(key, error)
-
-    FixityConstants::DYNAMODB_CLIENT.put_item({
-      table_name: FixityConstants::MISSING_KEYS_TABLE_NAME,
-      item: {
-        FixityConstants::ID_TYPE => FixityConstants::CURRENT_REQUEST_TOKEN,
-        FixityConstants::FILE_ID => token.to_s,
+  def self.put_errors_in_dynamodb(batch)
+    put_requests = []
+    batch.each do |batch_hash|
+      put_requests << {
+        put_request: {
+          item: batch_hash
+        }
       }
-    })
+      if put_requests.size == 25
+        batch_put_errors(put_requests)
+        put_requests.clear
+      end
+    end
+  end
+
+  #TODO handle returned unprocessed_items
+  def self.batch_put_errors(put_requests)
+    begin
+      resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
+        request_items: { # required
+          FixityConstants::MISSING_KEYS_TABLE_NAME => put_requests
+        }
+      })
+    rescue StandardError => e
+      error_message = "Error putting batch items in dynamodb table: #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
   end
 
 end

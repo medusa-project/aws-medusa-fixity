@@ -18,6 +18,7 @@ class FixityConstants
   DONE: String
   DYNAMODB_CLIENT: Object
   ERROR: String
+  ERR_CODE: String
   ERROR_MESSAGE: String
   EXPIRED: String
   FAILURE: String
@@ -30,6 +31,7 @@ class FixityConstants
   FIXITY_STATUS: String
   FIXITY_TABLE_NAME: String
   FOUND: String
+  HTTPS_STATUS_CODE: String
   ID_TYPE: String
   INDEX_NAME: String
   INITIAL_CHECKSUM: String

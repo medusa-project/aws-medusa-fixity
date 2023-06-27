@@ -151,7 +151,7 @@ class Fixity
        },
        expression_attribute_values: {
          ":fixity_status" => FixityConstants::CALCULATING,
-         ":timestamp" => Time.now.getutc.iso8601(10)
+         ":timestamp" => Time.now.getutc.iso8601(3)
        },
        update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
                               "#{FixityConstants::LAST_UPDATED} = :timestamp "\
