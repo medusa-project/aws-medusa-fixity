@@ -45,7 +45,7 @@ class ProcessBatchReports
   end
 
   def self.get_manifest_key(job_id)
-    s3_json_resp = S3_CLIENT.get_object({
+    s3_json_resp = FixityConstants::S3_CLIENT.get_object({
       bucket: FixityConstants::BACKUP_BUCKET, # required
       key: "#{FixityConstants::BATCH_PREFIX}/job-#{job_id}/manifest.json", # required
     })
