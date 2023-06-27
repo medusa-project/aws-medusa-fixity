@@ -124,7 +124,7 @@ class ProcessBatchReports
     begin
       resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
         request_items: { # required
-          FixityConstants::MISSING_KEYS_TABLE_NAME => put_requests
+          FixityConstants::RESTORATION_ERRORS_TABLE_NAME => put_requests
         }
       })
     rescue StandardError => e

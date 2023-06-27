@@ -223,7 +223,7 @@ class RestoreFiles
   def self.put_missing_key(fixity_item)
     begin
       FixityConstants::DYNAMODB_CLIENT.put_item({
-        table_name: FixityConstants::MISSING_KEYS_TABLE_NAME,
+        table_name: FixityConstants::RESTORATION_ERRORS_TABLE_NAME,
         item: {
           FixityConstants::S3_KEY => fixity_item.s3_key,
           FixityConstants::FILE_ID => fixity_item.file_id,

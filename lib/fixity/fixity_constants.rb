@@ -26,7 +26,7 @@ class FixityConstants
 
   #DYNAMODB
   FIXITY_TABLE_NAME = "FixityDemoTable"
-  MISSING_KEYS_TABLE_NAME = "FixityDemoMissingKeysTable"
+  RESTORATION_ERRORS_TABLE_NAME = "FixityDemoRestorationErrorsTable"
   MEDUSA_DB_ID_TABLE_NAME = "FixityDemoMedusaDBIdTable"
   INDEX_NAME = "FixityProcessingQueue"
   S3_KEY = "S3Key"
