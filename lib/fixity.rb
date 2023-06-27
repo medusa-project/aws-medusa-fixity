@@ -48,6 +48,7 @@ class Fixity
   def self.run_fixity_batch
     #get fixity ready batch info from dynamodb
     fixity_batch = get_fixity_batch
+    return nil if fixity_batch.nil?
 
     #update dynamodb table to remove fixity ready and set fixity status
     update_fixity_ready_batch = get_update_fixity_ready_batch(fixity_batch)
