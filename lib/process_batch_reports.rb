@@ -99,7 +99,7 @@ class ProcessBatchReports
       FixityConstants::LOGGER.error(error_message)
       return nil
     end
-    query_resp[0]["FileId"]
+    query_resp.items[0]["FileId"]
   end
 
   def self.remove_job_id
