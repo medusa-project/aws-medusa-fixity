@@ -31,7 +31,7 @@ class ProcessBatchReports
       table_name: FixityConstants::BATCH_JOB_IDS_TABLE_NAME,
       limit: 1,
     })
-    puts scan_resp.items[0][FixityConstants::JOB_ID]
+    return scan_resp.items[0][FixityConstants::JOB_ID]
   end
 
   #TODO refactor to separate duration from failures, add in check to see if job is complete
