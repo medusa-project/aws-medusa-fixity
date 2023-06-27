@@ -11,6 +11,7 @@ require_relative 'fixity/fixity_constants'
 class ProcessBatchReports
 
   def self.process_failures
+    #TODO move job ids to separate dynamodb table
     job_id = get_job_id
 
     job_failures = get_tasks_failed(job_id)
@@ -21,11 +22,10 @@ class ProcessBatchReports
     return nil if error_batch.empty?
 
     Dynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
-
-    #TODO remove job id from dynamodb table
+    
+    remove_job_id
   end
 
-  #TODO get job id from dynamodb table
   def self.get_job_id
     query_resp= FixityConstants::DYNAMODB_CLIENT.query({
       table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
@@ -105,5 +105,14 @@ class ProcessBatchReports
       return nil
     end
     query_resp[0]["FileId"]
+  end
+
+  def self.remove_job_id
+    resp = FixityConstants::DYNAMODB_CLIENT.delete_item({
+      key: {
+        FixityConstants::ID_TYPE => FixityConstants::JOB_ID,
+      },
+      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
+    })
   end
 end
