@@ -51,6 +51,18 @@ class BatchRestoreFiles
     send_batch_job(manifest, etag)
   end
 
+  def self.get_batch_restore_from_list(list)
+    manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
+    file_directories, medusa_files = get_batch_from_list(list)
+    directories = get_path_hash(file_directories)
+    batch = generate_manifest(manifest, medusa_files, directories)
+
+    #Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
+
+    etag = put_manifest(manifest)
+    send_batch_job(manifest, etag)
+  end
+
   def self.get_medusa_id
     begin
       #Get medusa id to start next batch from dynamodb
