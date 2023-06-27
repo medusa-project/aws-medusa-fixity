@@ -5,6 +5,7 @@ require 'aws-sdk-sqs'
 require 'aws-sdk-s3control'
 require 'csv'
 
+require_relative 'fixity/dynamodb'
 require_relative 'fixity/fixity_constants'
 
 class ProcessBatchReports
@@ -19,7 +20,9 @@ class ProcessBatchReports
     error_batch = parse_completion_report(manifest_key)
     return nil if error_batch.empty?
 
-    put_errors_in_dynamodb(error_batch)
+    Dynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
+
+    #TODO remove job id from dynamodb table
   end
 
   #TODO get job id from dynamodb table
@@ -103,34 +106,4 @@ class ProcessBatchReports
     end
     query_resp[0]["FileId"]
   end
-
-  def self.put_errors_in_dynamodb(batch)
-    put_requests = []
-    batch.each do |batch_hash|
-      put_requests << {
-        put_request: {
-          item: batch_hash
-        }
-      }
-      if put_requests.size == 25
-        batch_put_errors(put_requests)
-        put_requests.clear
-      end
-    end
-  end
-
-  #TODO handle returned unprocessed_items
-  def self.batch_put_errors(put_requests)
-    begin
-      resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
-        request_items: { # required
-          FixityConstants::RESTORATION_ERRORS_TABLE_NAME => put_requests
-        }
-      })
-    rescue StandardError => e
-      error_message = "Error putting batch items in dynamodb table: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
-  end
-
 end

@@ -6,9 +6,10 @@ require 'aws-sdk-s3control'
 require 'pg'
 require 'cgi'
 
+require_relative 'fixity/batch_item'
+require_relative 'fixity/dynamodb'
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
-require_relative 'fixity/batch_item'
 require_relative 'fixity/medusa_file'
 require_relative 'send_message'
 class BatchRestoreFiles
@@ -36,7 +37,8 @@ class BatchRestoreFiles
       id = id_iterator
       directories = get_path_hash(file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
-      put_items_in_dynamodb(batch)
+      # put_items_in_dynamodb(batch)
+      Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
     end
 
     put_medusa_id(id)
@@ -202,35 +204,6 @@ class BatchRestoreFiles
       })
     rescue StandardError => e
       error_message = "Error putting item in dynamodb table for #{batch_item.s3_key} with ID #{batch_item.file_id}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
-  end
-
-  def self.put_items_in_dynamodb(batch)
-    put_requests = []
-    batch.each do |batch_hash|
-      put_requests << {
-        put_request: {
-          item: batch_hash
-        }
-      }
-      if put_requests.size == 25
-        batch_put_items(put_requests)
-        put_requests.clear
-      end
-    end
-  end
-
-  #TODO handle returned unprocessed_items
-  def self.batch_put_items(put_requests)
-    begin
-      resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
-         request_items: { # required
-          FixityConstants::FIXITY_TABLE_NAME => put_requests
-         }
-       })
-    rescue StandardError => e
-      error_message = "Error putting batch items in dynamodb table: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
     end
   end

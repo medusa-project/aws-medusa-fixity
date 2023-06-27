@@ -3,6 +3,7 @@ require 'digest'
 require 'aws-sdk-dynamodb'
 require 'cgi'
 
+require_relative 'fixity/dynamodb'
 require_relative 'fixity/fixity_constants.rb'
 require_relative 'send_message.rb'
 
@@ -54,7 +55,7 @@ class Fixity
     update_fixity_ready_batch = get_update_fixity_ready_batch(fixity_batch)
     return nil if update_fixity_ready_batch.empty?
 
-    batch_put_items(update_fixity_ready_batch)
+    Dynamodb.batch_put_items(FixityConstants::FIXITY_TABLE_NAME, update_fixity_ready_batch)
 
     fixity_batch.each do |fixity_item|
 
@@ -65,7 +66,6 @@ class Fixity
 
       message = "FIXITY: File id #{file_id}, S3 key #{s3_key}"
       FixityConstants::LOGGER.info(message)
-
 
       #compare calculated checksum with initial checksum
       calculated_checksum = calculate_checksum(s3_key, file_id, file_size)
@@ -162,20 +162,6 @@ class Fixity
       })
     rescue StandardError => e
       error_message = "Error updating fixity ready and fixity status before calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
-  end
-
-  #TODO handle returned unprocessed_items
-  def self.batch_put_items(put_requests)
-    begin
-      resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
-        request_items: { # required
-          FixityConstants::FIXITY_TABLE_NAME => put_requests
-        }
-      })
-    rescue StandardError => e
-      error_message = "Error putting batch update fixity items in dynamodb table: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
     end
   end
