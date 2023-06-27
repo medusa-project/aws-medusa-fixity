@@ -37,7 +37,7 @@ class BatchRestoreFiles
       id = id_iterator
       directories = get_path_hash(file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
-      # put_items_in_dynamodb(batch)
+
       Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
     end
 
@@ -317,11 +317,9 @@ class BatchRestoreFiles
 
   def self.put_job_id(job_id)
     FixityConstants::DYNAMODB_CLIENT.put_item({
-      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
+      table_name: FixityConstants::BATCH_JOB_IDS_TABLE_NAME,
       item: {
-        FixityConstants::ID_TYPE => FixityConstants::JOB_ID,
-        FixityConstants::FILE_ID => job_id,
-        FixityConstants::PROCESSED => FixityConstants::FALSE
+        FixityConstants::JOB_ID => job_id,
       }
     })
   end

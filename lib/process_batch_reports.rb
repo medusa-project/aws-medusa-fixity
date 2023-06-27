@@ -22,21 +22,16 @@ class ProcessBatchReports
     return nil if error_batch.empty?
 
     Dynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
-    
+
     remove_job_id
   end
 
   def self.get_job_id
-    query_resp= FixityConstants::DYNAMODB_CLIENT.query({
-      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
+    scan_resp = FixityConstants::DYNAMODB_CLIENT.scan({
+      table_name: FixityConstants::BATCH_JOB_IDS_TABLE_NAME,
       limit: 1,
-      scan_index_forward: true,
-      expression_attribute_values: {
-        ":job_id" => FixityConstants::JOB_ID,
-      },
-      key_condition_expression: "#{FixityConstants::ID_TYPE} = :job_id",
     })
-    puts query_resp
+    puts scan_resp.items[0][FixityConstants::JOB_ID]
   end
 
   #TODO refactor to separate duration from failures, add in check to see if job is complete

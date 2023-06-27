@@ -26,6 +26,7 @@ class FixityConstants
 
   #DYNAMODB
   FIXITY_TABLE_NAME = "FixityDemoTable"
+  BATCH_JOB_IDS_TABLE_NAME = "FixityDemoBatchJobsTable"
   RESTORATION_ERRORS_TABLE_NAME = "FixityDemoRestorationErrorsTable"
   MEDUSA_DB_ID_TABLE_NAME = "FixityDemoMedusaDBIdTable"
   INDEX_NAME = "FixityProcessingQueue"
