@@ -52,6 +52,8 @@ class Fixity
 
     #update dynamodb table to remove fixity ready and set fixity status
     update_fixity_ready_batch = get_update_fixity_ready_batch(fixity_batch)
+    return nil if update_fixity_ready_batch.empty?
+    
     batch_put_items(update_fixity_ready_batch)
 
     fixity_batch.each do |fixity_item|
