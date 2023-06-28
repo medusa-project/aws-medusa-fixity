@@ -13,7 +13,7 @@ require_relative 'fixity/fixity_secrets'
 require_relative 'fixity/medusa_file'
 require_relative 'send_message'
 class BatchRestoreFiles
-  MAX_BATCH_COUNT = 10000
+  MAX_BATCH_COUNT = 20000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
 
   def self.get_batch_restore
