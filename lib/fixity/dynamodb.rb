@@ -21,6 +21,7 @@ class Dynamodb
 
   #TODO handle returned unprocessed_items
   def self.batch_put_items(table_name, write_requests)
+    return nil if write_requests.nil? || write_requests.empty?
     begin
       resp = FixityConstants::DYNAMODB_CLIENT.batch_write_item({
         request_items: { # required
@@ -30,6 +31,8 @@ class Dynamodb
     rescue StandardError => e
       error_message = "Error putting batch items in dynamodb table: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
+      error_info_message = "Write requests not put in dynamodb table: #{write_requests}"
+      FixityConstants::LOGGER.info(error_info_message)
     end
   end
 end
