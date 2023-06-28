@@ -18,13 +18,18 @@ GEM
       aws-sdk-core (~> 3, >= 3.165.0)
       aws-sdk-kms (~> 1)
       aws-sigv4 (~> 1.4)
+    aws-sdk-s3control (1.51.0)
+      aws-sdk-core (~> 3, >= 3.127.0)
+      aws-sigv4 (~> 1.1)
     aws-sdk-sqs (1.53.0)
       aws-sdk-core (~> 3, >= 3.165.0)
       aws-sigv4 (~> 1.1)
     aws-sigv4 (1.5.2)
       aws-eventstream (~> 1, >= 1.0.2)
+    csv (3.2.2)
     digest (3.1.1)
     jmespath (1.6.2)
+    pg (1.4.6)
     rake (13.0.6)
 
 PLATFORMS
@@ -33,8 +38,11 @@ PLATFORMS
 DEPENDENCIES
   aws-sdk-dynamodb
   aws-sdk-s3
+  aws-sdk-s3control
   aws-sdk-sqs
+  csv
   digest
+  pg
   rake (~> 13.0)
 
 BUNDLED WITH

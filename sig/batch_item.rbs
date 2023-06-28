@@ -1,4 +1,4 @@
-class MedusaItem
+class BatchItem
   @file_id: String
   @initial_checksum: String
   @s3_key: String

@@ -127,9 +127,4 @@ class DynamoDbTable
     puts Time.now.getutc.iso8601(3)
   end
 
-  # createTable
-  # getTime
-  scanTable
-  # deleteTable
-  # describeTable
 end

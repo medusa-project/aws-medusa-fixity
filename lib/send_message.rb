@@ -20,10 +20,11 @@ class SendMessage
                  FixityConstants::PASSTHROUGH => passthrough}
     end
     puts message.to_json
-    # FixityConstants::SQS_CLIENT_EAST.send_message({
-    #   queue_url: FixityConstants::MEDUSA_QUEUE_URL,
-    #   message_body: message.to_json,
-    #   message_attributes: {}
-    # })
+
+    FixityConstants::SQS_CLIENT_EAST.send_message({
+      queue_url: FixityConstants::MEDUSA_QUEUE_URL,
+      message_body: message.to_json,
+      message_attributes: {}
+    })
   end
 end

@@ -1,6 +1,11 @@
 class FixityConstants
+  ACCOUNT_ID: String
   ACTION: String
   BACKUP_BUCKET: String
+  BACKUP_BUCKET_ARN: String
+  BATCH_JOB_IDS_TABLE_NAME: String
+  BATCH_PREFIX: String
+  BATCH_ROLE_ARN: String
   BULK: String
   CALCULATED_CHECKSUM: String
   CALCULATING: String
@@ -9,9 +14,12 @@ class FixityConstants
   CFS_FILE_ID: String
   CHECKSUMS: String
   COMPLETED: String
+  CURRENT_ID: String
+  CURRENT_REQUEST_TOKEN: String
   DONE: String
   DYNAMODB_CLIENT: Object
   ERROR: String
+  ERR_CODE: String
   ERROR_MESSAGE: String
   EXPIRED: String
   FAILURE: String
@@ -22,26 +30,35 @@ class FixityConstants
   FIXITY_OUTCOME: String
   FIXITY_READY: String
   FIXITY_STATUS: String
+  FIXITY_TABLE_NAME: String
   FOUND: String
+  HTTPS_STATUS_CODE: String
+  ID_TYPE: String
   INDEX_NAME: String
   INITIAL_CHECKSUM: String
   INITIATED: String
+  JOB_ID: String
   LAST_UPDATED: String
   LOGGER: Logger
   MATCH: String
+  MAX_ID: String
   MD5: String
+  MEDUSA_DB_ID_TABLE_NAME: String
   MEDUSA_QUEUE_URL: String
   MISMATCH: String
   PARAMETERS: String
   PASSTHROUGH: String
+  PROCESSED: String
   REGION_EAST: String
   REGION_WEST: String
   REQUESTED: String
+  RESTORATION_ERRORS_TABLE_NAME: String
   RESTORATION_STATUS: String
   RESTORE_COMPLETED: String
   RESTORE_DELETED: String
   RESTORE_POSTED: String
   S3_CLIENT: Object
+  S3_CONTROL_CLIENT: Object
   S3_KEY: String
   S3_QUEUE_URL: String
   SQS_CLIENT_EAST: Object

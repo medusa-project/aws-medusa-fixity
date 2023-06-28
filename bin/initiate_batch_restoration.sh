@@ -1,6 +1,6 @@
 #!/bin/bash --login
 #Run fixity on restored files in order of restoration completion
 
-( cd /Users/gschmitt/workspace/aws-medusa-fixity || exit; ruby -r "./lib/restore_files.rb" -e "RestoreFiles.get_batch" )
+( cd /home/ec2-user/aws-medusa-fixity || exit; ruby -r "./lib/batch_restore_files.rb" -e "BatchRestoreFiles.get_batch_restore" )
 
 exit 0
