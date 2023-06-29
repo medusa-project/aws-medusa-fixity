@@ -11,6 +11,17 @@ class TestDynamodb < Minitest::Test
 
   end
 
+  def test_put_item_format
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {table_name: "TestTable",
+                         item: {Settings.aws.dynamo_db.s3_key => "123/test.tst"}}
+    mock_dynamodb_client.expect(:put_item, [], [args_verification])
+    dynamodb.put_item("TestTable",
+                         {Settings.aws.dynamo_db.s3_key => "123/test.tst"},)
+    mock_dynamodb_client.verify
+  end
+
   def test_get_put_requests_returns_array_of_arrays
     test_batch = %w[1 2 3]
     test_batch_items = Dynamodb.get_put_requests(test_batch)
@@ -109,6 +120,40 @@ class TestDynamodb < Minitest::Test
                          {"#TV" => "testVal"},
                          {":test_value" => "testValue"},
                          "SET #TV = :restoration_status")
+    mock_dynamodb_client.verify
+  end
+
+  def test_query_with_index_format
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {table_name: "TestTable",
+                         index_name: "TestIndex",
+                         limit: 1,
+                         scan_index_forward: true,
+                         expression_attribute_values: {":s3_key" => "123/test.tst",},
+                         key_condition_expression: "#{Settings.aws.dynamo_db.s3_key} = :s3_key",}
+    mock_dynamodb_client.expect(:query, [], [args_verification])
+    dynamodb.query_with_index("TestTable",
+                              "TestIndex",
+                              1,
+                              { ":s3_key" => "123/test.tst",},
+                              "#{Settings.aws.dynamo_db.s3_key} = :s3_key")
+    mock_dynamodb_client.verify
+  end
+
+  def test_query_format
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {table_name: "TestTable",
+                         limit: 1,
+                         scan_index_forward: true,
+                         expression_attribute_values: {":s3_key" => "123/test.tst",},
+                         key_condition_expression: "#{Settings.aws.dynamo_db.s3_key} = :s3_key",}
+    mock_dynamodb_client.expect(:query, [], [args_verification])
+    dynamodb.query("TestTable",
+                              1,
+                              { ":s3_key" => "123/test.tst",},
+                              "#{Settings.aws.dynamo_db.s3_key} = :s3_key")
     mock_dynamodb_client.verify
   end
 end
