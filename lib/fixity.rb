@@ -91,46 +91,27 @@ class Fixity
     end
   end
 
-  def self.get_fixity_item
-    #TODO expand to query multiple fixity items at a time
-    begin
-      query_resp = FixityConstants::DYNAMODB_CLIENT.query({
-        table_name: Settings.aws.dynamo_db.fixity_table_name,
-        index_name: Settings.aws.dynamo_db.index_name,
-        limit: 1,
-        scan_index_forward: true,
-        expression_attribute_values: {
-          ":ready" => Settings.aws.dynamo_db.true,
-        },
-        key_condition_expression: "#{Settings.aws.dynamo_db.fixity_ready} = :ready",
-      })
-      return nil if query_resp.items[0].nil?
-    rescue StandardError => e
-      error_message = "Error querying dynamodb table: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
-    query_resp.items[0]
+  def self.get_fixity_item(dynamodb)
+    table_name = Settings.aws.dynamo_db.fixity_table_name
+    index_name = Settings.aws.dynamo_db.index_name
+    limit = 1
+    expr_attr_vals = {":ready" => Settings.aws.dynamo_db.true,}
+    key_cond_expr = "#{Settings.aws.dynamo_db.fixity_ready} = :ready"
+    query_resp = dynamodb.query_with_index(table_name, index_name, limit, expr_attr_vals, key_cond_expr)
+    return nil if query_resp.nil?
+    return query_resp.items[0]
   end
 
-  def self.get_fixity_batch
+  def self.get_fixity_batch(dynamodb)
     #TODO expand to query multiple fixity items at a time
-    begin
-      query_resp = FixityConstants::DYNAMODB_CLIENT.query({
-        table_name: Settings.aws.dynamo_db.fixity_table_name,
-        index_name: Settings.aws.dynamo_db.index_name,
-        limit: 25,
-        scan_index_forward: true,
-        expression_attribute_values: {
-          ":ready" => Settings.aws.dynamo_db.true,
-        },
-        key_condition_expression: "#{Settings.aws.dynamo_db.fixity_ready} = :ready",
-      })
-      return nil if query_resp.items.nil?
-    rescue StandardError => e
-      error_message = "Error querying dynamodb table: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
-    query_resp.items
+    table_name = Settings.aws.dynamo_db.fixity_table_name
+    index_name = Settings.aws.dynamo_db.index_name
+    limit = 25
+    expr_attr_vals = {":ready" => Settings.aws.dynamo_db.true,}
+    key_cond_expr = "#{Settings.aws.dynamo_db.fixity_ready} = :ready"
+    query_resp = dynamodb.query_with_index(table_name, index_name, limit, expr_attr_vals, key_cond_expr)
+    return nil if query_resp.items.nil?
+    return query_resp.items
   end
 
   def self.get_update_fixity_ready_batch(fixity_batch)

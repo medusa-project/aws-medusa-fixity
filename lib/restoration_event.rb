@@ -1,21 +1,24 @@
 require 'aws-sdk-sqs'
 require 'json'
 require 'aws-sdk-dynamodb'
+require 'config'
 
 require_relative 'fixity/fixity_constants.rb'
 require_relative 'fixity/batch_item.rb'
+require_relative 'fixity/dynamodb'
 require_relative 'restore_files.rb'
 
 class RestorationEvent
+  Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   def self.handle_message
     #TODO query for file id? Unsure if necessary or helpful
-    response = FixityConstants::SQS_CLIENT_WEST.receive_message(queue_url: FixityConstants::S3_QUEUE_URL,
+    response = FixityConstants::SQS_CLIENT_WEST.receive_message(queue_url: Settings.aws.sqs.s3_queue_url,
                                                                 max_number_of_messages: 10,
                                                                 visibility_timeout: 300)
     return nil if response.data.messages.count.zero?
     response.messages.each do |message|
       body = JSON.parse(message.body)
-      FixityConstants::SQS_CLIENT_WEST.delete_message({queue_url: FixityConstants::S3_QUEUE_URL,
+      FixityConstants::SQS_CLIENT_WEST.delete_message({queue_url: Settings.aws.sqs.s3_queue_url,
                                                        receipt_handle: message.receipt_handle})
       records = body["Records"][0]
       restore_type = records["eventName"]
@@ -26,10 +29,10 @@ class RestorationEvent
       FixityConstants::LOGGER.info("PROCESSING: restore type: #{restore_type}, s3 key: #{s3_key}")
 
       case restore_type
-      when FixityConstants::RESTORE_COMPLETED
+      when Settings.aws.dynamo_db.restore_completed
         #update dynamodb item to complete, mark fixity ready, and update last updated
         handle_completed(s3_key, file_size, restore_timestamp)
-      when FixityConstants::RESTORE_DELETED
+      when Settings.aws.dynamo_db.restore_deleted
         #update dynamodb item to expired, remove fixity ready, and update last updated
         # RestoreFiles.restore_batch(s3_key)
         handle_deleted(s3_key, file_size, restore_timestamp)
@@ -41,63 +44,48 @@ class RestorationEvent
     end
   end
 
-  def self.handle_completed(s3_key, file_size, restore_timestamp)
-    begin
-      FixityConstants::DYNAMODB_CLIENT.update_item({
-       table_name: FixityConstants::FIXITY_TABLE_NAME,
-       key: {
-         FixityConstants::S3_KEY => s3_key
-       },
-       expression_attribute_values: {
-         ":restoration_status" => FixityConstants::COMPLETED,
-         ":fixity_ready" => FixityConstants::TRUE,
-         ":file_size" => file_size,
-         ":timestamp" => restore_timestamp
-       },
-       update_expression: "SET #{FixityConstants::RESTORATION_STATUS} = :restoration_status, "\
-                              "#{FixityConstants::FIXITY_READY} = :fixity_ready, "\
-                              "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
-                              "#{FixityConstants::FILE_SIZE} = :file_size"
-     })
-    rescue StandardError => e
-      error_message = "Error updating item #{s3_key}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
+  def self.handle_completed(dynamodb, s3_key, file_size, restore_timestamp)
+    table_name = Settings.aws.dynamo_db.fixity_table_name
+    key = { Settings.aws.dynamo_db.s3_key => s3_key }
+    expr_attr_values= {
+      ":restoration_status" => Settings.aws.dynamo_db.completed,
+      ":fixity_ready" => Settings.aws.dynamo_db.true,
+      ":file_size" => file_size,
+      ":timestamp" => restore_timestamp
+    }
+    update_expr = "SET #{Settings.aws.dynamo_db.restoration_status} = :restoration_status, "\
+                      "#{Settings.aws.dynamo_db.fixity_ready} = :fixity_ready, "\
+                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, "\
+                      "#{Settings.aws.dynamo_db.file_size} = :file_size"
+    dynamodb.update_item(table_name, key, {}, expr_attr_values, update_expr)
   end
 
-  def self.handle_deleted(s3_key, file_size, restore_timestamp)
-    begin
-      update_item_resp = FixityConstants::DYNAMODB_CLIENT.update_item({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        key: {
-          FixityConstants::S3_KEY => s3_key
-        },
-        expression_attribute_values: {
-          ":restoration_status" => FixityConstants::EXPIRED,
-          ":file_size" => file_size,
-          ":timestamp" => Time.now.getutc.iso8601(3)
-        },
-        update_expression: "SET #{FixityConstants::RESTORATION_STATUS} = :restoration_status, "\
-                               "#{FixityConstants::LAST_UPDATED} = :timestamp, "\
-                               "#{FixityConstants::FILE_SIZE} = :file_size "\
-                        "REMOVE #{FixityConstants::FIXITY_READY}",
-        return_values: "ALL_OLD"
-      })
-    rescue StandardError => e
-      error_message = "Error updating item #{s3_key}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
+  def self.handle_deleted(dynamodb, s3_key, file_size, restore_timestamp)
+    table_name = Settings.aws.dynamo_db.fixity_table_name
+    key = { Settings.aws.dynamo_db.s3_key => s3_key }
+    expr_attr_values = {
+      ":restoration_status" => Settings.aws.dynamo_db.expired,
+      ":file_size" => file_size,
+      ":timestamp" => Time.now.getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamo_db.restoration_status} = :restoration_status, "\
+                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, "\
+                      "#{Settings.aws.dynamo_db.file_size} = :file_size "\
+                  "REMOVE #{Settings.aws.dynamo_db.fixity_ready}"
+    ret_val =  "ALL_OLD"
+    update_item_resp = dynamodb.update_item(table_name, key, {}, expr_attr_values, update_expr, ret_val)
     handle_expiration(update_item_resp)
   end
 
   #TODO implement for batch processing
   def self.handle_expiration(update_item_resp)
-    fixity_status = update_item_resp.attributes[FixityConstants::FIXITY_STATUS]
+    return nil if update_item_resp.nil?
+    fixity_status = update_item_resp.attributes[Settings.aws.dynamo_db.fixity_status]
     #TODO check this logic
-    if fixity_status != FixityConstants::DONE && fixity_status != FixityConstants::ERROR
-      s3_key = update_item_resp.attributes[FixityConstants::S3_KEY]
-      file_id = update_item_resp.attributes[FixityConstants::FILE_ID].to_i
-      initial_checksum = update_item_resp.attributes[FixityConstants::INITIAL_CHECKSUM]
+    if fixity_status != Settings.aws.dynamo_db.done && fixity_status != Settings.aws.dynamo_db.error
+      s3_key = update_item_resp.attributes[Settings.aws.dynamo_db.s3_key]
+      file_id = update_item_resp.attributes[Settings.aws.dynamo_db.file_id].to_i
+      initial_checksum = update_item_resp.attributes[Settings.aws.dynamo_db.initial_checksum]
       message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
       FixityConstants::LOGGER.info(message)
       item = BatchItem.new(s3_key, file_id, initial_checksum)

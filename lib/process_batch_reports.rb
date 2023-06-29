@@ -4,12 +4,13 @@ require 'aws-sdk-s3'
 require 'aws-sdk-sqs'
 require 'aws-sdk-s3control'
 require 'csv'
+require 'confid'
 
 require_relative 'fixity/dynamodb'
 require_relative 'fixity/fixity_constants'
 
 class ProcessBatchReports
-
+  Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   def self.process_failures
     #TODO move job ids to separate dynamodb table
     job_id = get_job_id
@@ -21,17 +22,16 @@ class ProcessBatchReports
     error_batch = parse_completion_report(manifest_key)
     return nil if error_batch.empty?
 
-    TestDynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
+    Dynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
 
     remove_job_id
   end
 
-  def self.get_job_id
-    scan_resp = FixityConstants::DYNAMODB_CLIENT.scan({
-      table_name: FixityConstants::BATCH_JOB_IDS_TABLE_NAME,
-      limit: 1,
-    })
-    return scan_resp.items[0][FixityConstants::JOB_ID]
+  def self.get_job_id(dynamodb)
+    table_name = Settings.aws.dynamo_db.batch_job_ids_table_name
+    scan_resp = dynamodb.scan(table_name, 1)
+    return nil if scan_resp.nil?
+    return scan_resp.items[0][Settings.aws.dynamo_db.job_id]
   end
 
   #TODO refactor to separate duration from failures, add in check to see if job is complete
@@ -81,33 +81,19 @@ class ProcessBatchReports
   end
 
   #TODO implement get file_id
-  def self.get_file_id(s3_key)
-    begin
-      #Get medusa id to start next batch from dynamodb
-      query_resp= FixityConstants::DYNAMODB_CLIENT.query({
-         table_name: FixityConstants::FIXITY_TABLE_NAME,
-         limit: 1,
-         scan_index_forward: true,
-         expression_attribute_values: {
-           ":s3_key" => s3_key,
-         },
-         key_condition_expression: "#{FixityConstants::S3_KEY} = :s3_key",
-       })
-    rescue StandardError => e
-      # Error getting current request token
-      error_message = "Error getting file id for key #{s3_key}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-      return nil
-    end
+  def self.get_file_id(dynamodb, s3_key)
+    table_name = Settings.aws.dynamo_db.fixity_table_name
+    limit = 1
+    expr_attr_vals = { ":s3_key" => s3_key,}
+    key_cond_expr = "#{Settings.aws.dynamo_db.s3_key} = :s3_key"
+    query_resp= dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
+    return nil if query_resp.nil?
     query_resp.items[0]["FileId"]
   end
 
-  def self.remove_job_id
-    resp = FixityConstants::DYNAMODB_CLIENT.delete_item({
-      key: {
-        FixityConstants::ID_TYPE => FixityConstants::JOB_ID,
-      },
-      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
-    })
+  def self.remove_job_id(dynamodb, job_id)
+    key = { Settings.aws.dynamo_db.job_id => job_id,}
+    table_name = Settings.aws.dynamo_db.batch_job_ids_table_name
+    dynamodb.delete_item(key, table_name)
   end
 end

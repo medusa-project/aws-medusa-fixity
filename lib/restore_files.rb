@@ -5,6 +5,7 @@ require 'aws-sdk-sqs'
 require 'aws-sdk-s3control'
 require 'pg'
 require 'cgi'
+require 'config'
 
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
@@ -14,6 +15,7 @@ require_relative 'send_message'
 class RestoreFiles
   MAX_BATCH_COUNT = 1000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
+  Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
 
   def self.get_batch
     #get information from medusa DB for a batch of files to be restored(File ID, S3 key, initial checksum)
@@ -75,28 +77,14 @@ class RestoreFiles
     restore_batch(batch) #call one by one or together?
   end
 
-  def self.get_medusa_id
-    begin
-      #Get medusa id to start next batch from dynamodb
-      query_resp= FixityConstants::DYNAMODB_CLIENT.query({
-       table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
-       limit: 1,
-       scan_index_forward: true,
-       expression_attribute_values: {
-         ":file_type" => FixityConstants::CURRENT_ID,
-       },
-       key_condition_expression: "#{FixityConstants::ID_TYPE} = :file_type",
-      })
-    rescue StandardError => e
-      # Error getting current medusa id
-      # Send error message to medusa
-      error_message = "Error getting medusa id to query the database: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-      return nil
-    end
-
+  def self.get_medusa_id(dynamodb)
+    table_name = Settings.aws.dynamodb.medusa_db_id_table_name
+    limit = 1
+    expr_attr_vals = { ":file_type" => Settings.aws.dynamodb.current_id, }
+    key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :file_type"
+    query_resp = dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
     return nil if query_resp.nil?
-    query_resp.items[0][FixityConstants::FILE_ID].to_i
+    query_resp.items[0][Settings.aws.dynamodb.file_id].to_i
   end
 
   def self.get_max_id
@@ -130,14 +118,13 @@ class RestoreFiles
     CGI.escape(path).gsub('%2F', '/')
   end
 
-  def self.put_medusa_id(id)
-    FixityConstants::DYNAMODB_CLIENT.put_item({
-      table_name: FixityConstants::MEDUSA_DB_ID_TABLE_NAME,
-      item: {
-        FixityConstants::ID_TYPE => FixityConstants::CURRENT_ID,
-        FixityConstants::FILE_ID => id.to_s,
-      }
-    })
+  def self.put_medusa_id(dynamodb, id)
+    table_name = Settings.aws.dynamodb.medusa_db_id_table_name
+    item = {
+      Settings.aws.dynamodb.id_type => Settings.aws.dynamodb.current_id,
+      Settings.aws.dynamodb.file_id => id.to_s,
+    }
+    dynamodb.put_item(table_name, item)
   end
 
   def self.get_batch_from_list(list)
@@ -202,38 +189,26 @@ class RestoreFiles
     FixityConstants::LOGGER.info("Restore batch duration to process #{batch.length()} files: #{duration}")
   end
 
-  def self.put_batch_item(fixity_item)
-    begin
-      FixityConstants::DYNAMODB_CLIENT.put_item({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        item: {
-          FixityConstants::S3_KEY => fixity_item.s3_key,
-          FixityConstants::FILE_ID => fixity_item.file_id,
-          FixityConstants::INITIAL_CHECKSUM => fixity_item.initial_checksum,
-          FixityConstants::RESTORATION_STATUS => FixityConstants::REQUESTED,
-          FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
-        }
-      })
-    rescue StandardError => e
-      error_message = "Error putting item in dynamodb table for #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
+  def self.put_batch_item(dynamodb, fixity_item)
+    table_name = Settings.aws.dynamo_db.fixity_table_name
+    item = {
+      Settings.aws.dynamo_db.s3_key => fixity_item.s3_key,
+      Settings.aws.dynamo_db.file_id => fixity_item.file_id,
+      Settings.aws.dynamo_db.initial_checksum => fixity_item.initial_checksum,
+      Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.requested,
+      Settings.aws.dynamo_db.last_updated => Time.now.getutc.iso8601(3)
+    }
+    dynamodb.put_item(table_name, item)
   end
 
-  def self.put_missing_key(fixity_item)
-    begin
-      FixityConstants::DYNAMODB_CLIENT.put_item({
-        table_name: FixityConstants::RESTORATION_ERRORS_TABLE_NAME,
-        item: {
-          FixityConstants::S3_KEY => fixity_item.s3_key,
-          FixityConstants::FILE_ID => fixity_item.file_id,
-          FixityConstants::INITIAL_CHECKSUM => fixity_item.initial_checksum,
-          FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
-        }
-      })
-    rescue StandardError => e
-      error_message = "Error putting item in dynamodb table for #{fixity_item.s3_key} with ID #{fixity_item.file_id}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
+  def self.put_missing_key(dynamodb, fixity_item)
+    table_name = Settings.aws.dynamo_db.restoration_errors_table_name
+    item = {
+      Settings.aws.dynamo_db.s3_key => fixity_item.s3_key,
+      Settings.aws.dynamo_db.file_id => fixity_item.file_id,
+      Settings.aws.dynamo_db.initial_checksum => fixity_item.initial_checksum,
+      Settings.aws.dynamo_db.last_updated => Time.now.getutc.iso8601(3)
+    }
+    dynamodb.put_item(table_name, item)
   end
 end

@@ -2,9 +2,11 @@
 # require 'test/unit'
 require 'minitest/autorun'
 require 'aws-sdk-dynamodb'
+require 'config'
 
 require_relative '../lib/fixity/dynamodb'
 class TestDynamodb < Minitest::Test
+  Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
   def setup()
 
   end
@@ -68,6 +70,45 @@ class TestDynamodb < Minitest::Test
     args_verification_2 = {request_items: {"TestTable" => %w[4 5 6] }}
     mock_dynamodb_client.expect(:batch_write_item, [], [args_verification_2])
     dynamodb.batch_write_items("TestTable", [%w[1 2 3], %w[4 5 6]])
+    mock_dynamodb_client.verify
+  end
+
+  def test_update_item_format
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {table_name: "TestTable",
+                         key: {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         expression_attribute_names: {"#TV" => "testVal"},
+                         expression_attribute_values: {":test_value" => "testValue"},
+                         update_expression: "SET #TV = :restoration_status",
+                         return_values: "ALL_OLD" }
+
+    mock_dynamodb_client.expect(:update_item, [], [args_verification])
+    dynamodb.update_item("TestTable",
+                    {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+           {"#TV" => "testVal"},
+          {":test_value" => "testValue"},
+              "SET #TV = :restoration_status",
+                  "ALL_OLD")
+    mock_dynamodb_client.verify
+  end
+
+  def test_update_item_default_ret_val_param
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {table_name: "TestTable",
+                         key: {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         expression_attribute_names: {"#TV" => "testVal"},
+                         expression_attribute_values: {":test_value" => "testValue"},
+                         update_expression: "SET #TV = :restoration_status",
+                         return_values: "NONE" }
+
+    mock_dynamodb_client.expect(:update_item, [], [args_verification])
+    dynamodb.update_item("TestTable",
+                         {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         {"#TV" => "testVal"},
+                         {":test_value" => "testValue"},
+                         "SET #TV = :restoration_status")
     mock_dynamodb_client.verify
   end
 end
