@@ -2,22 +2,24 @@ require 'aws-sdk-s3'
 require 'digest'
 require 'aws-sdk-dynamodb'
 require 'cgi'
+require 'config'
 
 require_relative 'fixity/dynamodb'
 require_relative 'fixity/fixity_constants.rb'
 require_relative 'send_message.rb'
 
 class Fixity
+  Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   MEGABYTE = 1024 * 1024
 
   def self.run_fixity
     #get object info from dynamodb
     fixity_item = get_fixity_item
 
-    s3_key = fixity_item[FixityConstants::S3_KEY]
-    file_id = fixity_item[FixityConstants::FILE_ID].to_i
-    initial_checksum = fixity_item[FixityConstants::INITIAL_CHECKSUM]
-    file_size = fixity_item[FixityConstants::FILE_SIZE]
+    s3_key = fixity_item[Settings.aws.dynamo_db.s3_key]
+    file_id = fixity_item[Settings.aws.dynamo_db.file_id].to_i
+    initial_checksum = fixity_item[Settings.aws.dynamo_db.initial_checksum]
+    file_size = fixity_item[Settings.aws.dynamo_db.file_size]
 
     message = "FIXITY: File id #{file_id}, S3 key #{s3_key}"
     FixityConstants::LOGGER.info(message)
@@ -28,13 +30,13 @@ class Fixity
     #compare calculated checksum with initial checksum
     calculated_checksum = calculate_checksum(s3_key, file_id, file_size)
 
-    fixity_outcome = (calculated_checksum == initial_checksum) ? FixityConstants::MATCH : FixityConstants::MISMATCH
+    fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamo_db.match : Settings.aws.dynamo_db.mismatch
 
     case fixity_outcome
-    when FixityConstants::MATCH
+    when Settings.aws.dynamo_db.match
       #update dynamodb calculated checksum, fixity status, fixity verification
       update_fixity_match(s3_key, calculated_checksum)
-    when FixityConstants::MISMATCH
+    when Settings.aws.dynamo_db.mismatch
       #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
       update_fixity_mismatch(s3_key, calculated_checksum)
     else
@@ -55,14 +57,14 @@ class Fixity
     update_fixity_ready_batch = get_update_fixity_ready_batch(fixity_batch)
     return nil if update_fixity_ready_batch.empty?
 
-    Dynamodb.batch_put_items(FixityConstants::FIXITY_TABLE_NAME, update_fixity_ready_batch)
+    Dynamodb.batch_write_items(FixityConstants::FIXITY_TABLE_NAME, update_fixity_ready_batch)
 
     fixity_batch.each do |fixity_item|
 
-      s3_key = fixity_item[FixityConstants::S3_KEY]
-      file_id = fixity_item[FixityConstants::FILE_ID].to_i
-      initial_checksum = fixity_item[FixityConstants::INITIAL_CHECKSUM]
-      file_size = fixity_item[FixityConstants::FILE_SIZE]
+      s3_key = fixity_item[Settings.aws.dynamo_db.s3_key]
+      file_id = fixity_item[Settings.aws.dynamo_db.file_id].to_i
+      initial_checksum = fixity_item[Settings.aws.dynamo_db.initial_checksum]
+      file_size = fixity_item[Settings.aws.dynamo_db.file_size]
 
       message = "FIXITY: File id #{file_id}, S3 key #{s3_key}"
       FixityConstants::LOGGER.info(message)
@@ -70,13 +72,13 @@ class Fixity
       #compare calculated checksum with initial checksum
       calculated_checksum = calculate_checksum(s3_key, file_id, file_size)
 
-      fixity_outcome = (calculated_checksum == initial_checksum) ? FixityConstants::MATCH : FixityConstants::MISMATCH
+      fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamo_db.match : Settings.aws.dynamo_db.mismatch
 
       case fixity_outcome
-      when FixityConstants::MATCH
+      when Settings.aws.dynamo_db.match
         #update dynamodb calculated checksum, fixity status, fixity verification
         update_fixity_match(s3_key, calculated_checksum)
-      when FixityConstants::MISMATCH
+      when Settings.aws.dynamo_db.mismatch
         #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
         update_fixity_mismatch(s3_key, calculated_checksum)
       else
@@ -93,14 +95,14 @@ class Fixity
     #TODO expand to query multiple fixity items at a time
     begin
       query_resp = FixityConstants::DYNAMODB_CLIENT.query({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        index_name: FixityConstants::INDEX_NAME,
+        table_name: Settings.aws.dynamo_db.fixity_table_name,
+        index_name: Settings.aws.dynamo_db.index_name,
         limit: 1,
         scan_index_forward: true,
         expression_attribute_values: {
-          ":ready" => FixityConstants::TRUE,
+          ":ready" => Settings.aws.dynamo_db.true,
         },
-        key_condition_expression: "#{FixityConstants::FIXITY_READY} = :ready",
+        key_condition_expression: "#{Settings.aws.dynamo_db.fixity_ready} = :ready",
       })
       return nil if query_resp.items[0].nil?
     rescue StandardError => e
@@ -114,14 +116,14 @@ class Fixity
     #TODO expand to query multiple fixity items at a time
     begin
       query_resp = FixityConstants::DYNAMODB_CLIENT.query({
-        table_name: FixityConstants::FIXITY_TABLE_NAME,
-        index_name: FixityConstants::INDEX_NAME,
+        table_name: Settings.aws.dynamo_db.fixity_table_name,
+        index_name: Settings.aws.dynamo_db.index_name,
         limit: 25,
         scan_index_forward: true,
         expression_attribute_values: {
-          ":ready" => FixityConstants::TRUE,
+          ":ready" => Settings.aws.dynamo_db.true,
         },
-        key_condition_expression: "#{FixityConstants::FIXITY_READY} = :ready",
+        key_condition_expression: "#{Settings.aws.dynamo_db.fixity_ready} = :ready",
       })
       return nil if query_resp.items.nil?
     rescue StandardError => e
@@ -134,36 +136,27 @@ class Fixity
   def self.get_update_fixity_ready_batch(fixity_batch)
     put_requests = []
     fixity_batch.each do |fixity_item|
-      fixity_item[FixityConstants::LAST_UPDATED] = Time.now.getutc.iso8601(10)
-      fixity_item[FixityConstants::FIXITY_STATUS] = FixityConstants::CALCULATING
-      fixity_item.delete(FixityConstants::FIXITY_READY)
+      fixity_item[Settings.aws.dynamo_db.last_updated] = Time.now.getutc.iso8601(10)
+      fixity_item[Settings.aws.dynamo_db.fixity_status] = Settings.aws.dynamo_db.calculating
+      fixity_item.delete(Settings.aws.dynamo_db.fixity_ready)
       put_requests << {
         put_request: {
           item: fixity_item
         }
       }
     end
-    return put_requests
+    return [put_requests]
   end
-  def self.update_fixity_ready(s3_key)
-    begin
-      FixityConstants::DYNAMODB_CLIENT.update_item({
-       table_name: FixityConstants::FIXITY_TABLE_NAME,
-       key: {
-         FixityConstants::S3_KEY => s3_key
-       },
-       expression_attribute_values: {
-         ":fixity_status" => FixityConstants::CALCULATING,
-         ":timestamp" => Time.now.getutc.iso8601(3)
-       },
-       update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
-                              "#{FixityConstants::LAST_UPDATED} = :timestamp "\
-                          "REMOVE #{FixityConstants::FIXITY_READY}"
-      })
-    rescue StandardError => e
-      error_message = "Error updating fixity ready and fixity status before calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
+  def self.update_fixity_ready(dynamodb, s3_key)
+    key = { Settings.aws.dynamo_db.s3_key => s3_key }
+    expr_attr_values = {
+      ":fixity_status" => Settings.aws.dynamo_db.calculating,
+      ":timestamp" => Time.now.getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp "\
+                  "REMOVE #{Settings.aws.dynamo_db.fixity_ready}"
+    dynamodb.update_item(Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr)
   end
 
   def self.calculate_checksum(s3_key, file_id, file_size)
@@ -175,7 +168,7 @@ class Fixity
     begin
       while download_size_start < file_size
         object_part = FixityConstants::S3_CLIENT.get_object({
-          bucket: FixityConstants::BACKUP_BUCKET, # required
+          bucket: Settings.aws.s3.backup_bucket, # required
           key: CGI.unescape(s3_key), # required
           range: "bytes=#{download_size_start}-#{download_size_end}"
         })
@@ -193,64 +186,53 @@ class Fixity
     md5.hexdigest
   end
 
-  def self.update_fixity_match(s3_key, calculated_checksum)
-    FixityConstants::DYNAMODB_CLIENT.update_item({
-      table_name: FixityConstants::FIXITY_TABLE_NAME,
-      key: {
-        FixityConstants::S3_KEY => s3_key
-      },
-      expression_attribute_values: {
-       ":fixity_status" => FixityConstants::DONE,
-       ":fixity_outcome" => FixityConstants::MATCH,
-       ":calculated_checksum" => calculated_checksum,
-       ":timestamp" => Time.now.getutc.iso8601(3)
-      },
-      update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
-                             "#{FixityConstants::FIXITY_OUTCOME} = :fixity_outcome, " \
-                             "#{FixityConstants::CALCULATED_CHECKSUM} = :calculated_checksum, " \
-                             "#{FixityConstants::LAST_UPDATED} = :timestamp"
-    })
+  def self.update_fixity_match(dynamodb, s3_key, calculated_checksum)
+    key = { Settings.aws.dynamo_db.s3_key => s3_key }
+    expr_attr_values = {
+      ":fixity_status" => Settings.aws.dynamo_db.done,
+      ":fixity_outcome" => Settings.aws.dynamo_db.match,
+      ":calculated_checksum" => calculated_checksum,
+      ":timestamp" => Time.now.getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamo_db.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamo_db.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp"
+    dynamodb.update_item(Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr)
+
   end
 
-  def self.update_fixity_mismatch(s3_key, calculated_checksum)
-    FixityConstants::DYNAMODB_CLIENT.update_item({
-      table_name: FixityConstants::FIXITY_TABLE_NAME,
-      key: {
-        FixityConstants::S3_KEY => s3_key
-      },
-      expression_attribute_values: {
-       ":mismatch" => FixityConstants::TRUE,
-       ":fixity_status" => FixityConstants::DONE,
-       ":fixity_outcome" => FixityConstants::MISMATCH,
-       ":calculated_checksum" => calculated_checksum,
-       ":timestamp" => Time.now.getutc.iso8601(3)
-      },
-      update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
-                             "#{FixityConstants::FIXITY_OUTCOME} = :fixity_outcome, " \
-                             "#{FixityConstants::CALCULATED_CHECKSUM} = :calculated_checksum, " \
-                             "#{FixityConstants::LAST_UPDATED} = :timestamp, " \
-                             "#{FixityConstants::MISMATCH} = :mismatch"
-    })
+  def self.update_fixity_mismatch(dynamodb, s3_key, calculated_checksum)
+    key = { Settings.aws.dynamo_db.s3_key => s3_key }
+    expr_attr_values = {
+      ":mismatch" => Settings.aws.dynamo_db.true,
+      ":fixity_status" => Settings.aws.dynamo_db.done,
+      ":fixity_outcome" => Settings.aws.dynamo_db.mismatch,
+      ":calculated_checksum" => calculated_checksum,
+      ":timestamp" => Time.now.getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamo_db.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamo_db.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, " \
+                      "#{Settings.aws.dynamo_db.mismatch} = :mismatch"
+    dynamodb.update_item(Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr)
   end
 
-  def self.update_fixity_error(s3_key)
-    FixityConstants::DYNAMODB_CLIENT.update_item({
-      table_name: FixityConstants::FIXITY_TABLE_NAME,
-      key: {
-        FixityConstants::S3_KEY => s3_key
-      },
-      expression_attribute_names: {
-        "#E" => FixityConstants::ERROR,
-      },
-      expression_attribute_values: {
-        ":error" => FixityConstants::TRUE,
-        ":fixity_status" => FixityConstants::ERROR,
-        ":timestamp" => Time.now.getutc.iso8601(3)
-      },
-      update_expression: "SET #{FixityConstants::FIXITY_STATUS} = :fixity_status, "\
-                             "#{FixityConstants::LAST_UPDATED} = :timestamp, " \
-                             "#E = :error"
-    })
+  def self.update_fixity_error(dynamodb, s3_key)
+    key = { Settings.aws.dynamo_db.s3_key => s3_key }
+    expr_attr_names = {
+      "#E" => Settings.aws.dynamo_db.error,
+    }
+    expr_attr_values = {
+      ":error" => Settings.aws.dynamo_db.true,
+      ":fixity_status" => Settings.aws.dynamo_db.error,
+      ":timestamp" => Time.now.getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, " \
+                      "#E = :error"
+    dynamodb.update_item(Settings.aws.dynamo_db.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr)
   end
 end
 

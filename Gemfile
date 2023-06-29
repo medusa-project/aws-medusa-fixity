@@ -16,3 +16,7 @@ gem "digest"
 gem "pg"
 
 gem "csv"
+
+gem "config"
+
+gem "minitest"

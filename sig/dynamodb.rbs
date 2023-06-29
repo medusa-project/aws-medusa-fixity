@@ -1,0 +1,4 @@
+
+class Dynamodb
+  @dynamodb_client: Object
+end

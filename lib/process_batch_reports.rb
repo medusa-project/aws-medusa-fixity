@@ -21,7 +21,7 @@ class ProcessBatchReports
     error_batch = parse_completion_report(manifest_key)
     return nil if error_batch.empty?
 
-    Dynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
+    TestDynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
 
     remove_job_id
   end
