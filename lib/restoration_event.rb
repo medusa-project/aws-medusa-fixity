@@ -6,20 +6,22 @@ require 'config'
 require_relative 'fixity/fixity_constants.rb'
 require_relative 'fixity/batch_item.rb'
 require_relative 'fixity/dynamodb'
+require_relative 'fixity/s3'
 require_relative 'batch_restore_files.rb'
 
 class RestorationEvent
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
+  SQS_CLIENT = Aws::SQS::Client.new(region: Settings.aws.region_west)
   def self.handle_message
-    dynamodb = Dynamodb.new()
+    dynamodb = Dynamodb.new
     #TODO query for file id? Unsure if necessary or helpful
-    response = FixityConstants::SQS_CLIENT_WEST.receive_message(queue_url: Settings.aws.sqs.s3_queue_url,
+    response = SQS_CLIENT.receive_message(queue_url: Settings.aws.sqs.s3_queue_url,
                                                                 max_number_of_messages: 10,
                                                                 visibility_timeout: 300)
     return nil if response.data.messages.count.zero?
     response.messages.each do |message|
       body = JSON.parse(message.body)
-      FixityConstants::SQS_CLIENT_WEST.delete_message({queue_url: Settings.aws.sqs.s3_queue_url,
+      SQS_CLIENT.delete_message({queue_url: Settings.aws.sqs.s3_queue_url,
                                                        receipt_handle: message.receipt_handle})
       records = body["Records"][0]
       restore_type = records["eventName"]

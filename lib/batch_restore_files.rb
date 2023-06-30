@@ -14,16 +14,16 @@ require_relative 'fixity/s3_control'
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
 require_relative 'fixity/medusa_file'
-require_relative 'sqs'
+require_relative 'send_message'
 class BatchRestoreFiles
   MAX_BATCH_COUNT = 20000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
 
   def self.get_batch_restore
-    dynamodb = Dynamodb.new()
-    s3 = S3.new()
-    s3_control = S3Control.new()
+    dynamodb = Dynamodb.new
+    s3 = S3.new
+    s3_control = S3Control.new
 
     time_start = Time.now
     id = get_medusa_id(dynamodb)
