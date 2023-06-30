@@ -9,18 +9,24 @@ require 'config'
 
 require_relative 'fixity/batch_item'
 require_relative 'fixity/dynamodb'
+require_relative 'fixity/s3'
+require_relative 'fixity/s3_control'
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
 require_relative 'fixity/medusa_file'
-require_relative 'send_message'
+require_relative 'sqs'
 class BatchRestoreFiles
   MAX_BATCH_COUNT = 20000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
 
   def self.get_batch_restore
+    dynamodb = Dynamodb.new()
+    s3 = S3.new()
+    s3_control = S3Control.new()
+
     time_start = Time.now
-    id = get_medusa_id
+    id = get_medusa_id(dynamodb)
     return nil if id.nil?
 
     max_id = get_max_id
@@ -40,20 +46,23 @@ class BatchRestoreFiles
       directories = get_path_hash(file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
 
-      Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
+      Dynamodb.put_batch_items_in_table(Settings.aws.dynamo_db.fixity_table_name, batch)
     end
 
-    put_medusa_id(id)
+    put_medusa_id(dynamodb, id)
 
     time_end = Time.now
     duration = time_end - time_start
 
     FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
-    etag = put_manifest(manifest)
-    send_batch_job(manifest, etag)
+    etag = put_manifest(s3, manifest)
+    send_batch_job(dynamodb, s3_control, manifest, etag)
   end
 
   def self.get_batch_restore_from_list(list)
+    dynamodb = Dynamodb.new()
+    s3 = S3.new()
+    s3_control = S3Control.new()
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
     file_directories, medusa_files = get_batch_from_list(list)
     directories = get_path_hash(file_directories)
@@ -61,8 +70,8 @@ class BatchRestoreFiles
 
     #Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
 
-    etag = put_manifest(manifest)
-    send_batch_job(manifest, etag)
+    etag = put_manifest(s3, manifest)
+    send_batch_job(dynamodb, s3_control, manifest, etag)
   end
 
   def self.get_medusa_id(dynamodb)
@@ -164,14 +173,14 @@ class BatchRestoreFiles
       path = directory_path + medusa_file.name
       s3_key = CGI.escape(path).gsub('%2F', '/')
       open(manifest, 'a') { |f|
-        f.puts "#{FixityConstants::BACKUP_BUCKET},#{s3_key}"
+        f.puts "#{Settings.s3.backup_bucket},#{s3_key}"
       }
       batch_hash = {
-        FixityConstants::S3_KEY => s3_key,
-        FixityConstants::FILE_ID => medusa_file.file_id,
-        FixityConstants::INITIAL_CHECKSUM => medusa_file.initial_checksum,
-        FixityConstants::RESTORATION_STATUS => FixityConstants::REQUESTED,
-        FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
+        Settings.aws.dynamo_db.s3_key => s3_key,
+        Settings.aws.dynamo_db.file_id => medusa_file.file_id,
+        Settings.aws.dynamo_db.initial_checksum => medusa_file.initial_checksum,
+        Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.requested,
+        Settings.aws.dynamo_db.last_updated => Time.now.getutc.iso8601(3)
       }
       # put_batch_item(batch_item)
       batch.push(batch_hash)
@@ -200,12 +209,10 @@ class BatchRestoreFiles
     dynamodb.put_item(table_name, item)
   end
 
-  def self.put_manifest(manifest)
-    s3_resp = FixityConstants::S3_CLIENT.put_object(
-      body: File.new(manifest),
-      bucket: "#{FixityConstants::BACKUP_BUCKET}",
-      key: "fixity/#{manifest}",
-    )
+  def self.put_manifest(s3, manifest)
+    body = File.new(manifest)
+    key = "fixity/#{manifest}"
+    s3_resp = s3.put_object(body, Settings.s3.backup_bucket, key)
     s3_resp.etag
   end
 
@@ -229,49 +236,21 @@ class BatchRestoreFiles
     return file_directories.uniq!, medusa_files
   end
 
-  def self.send_batch_job(manifest, etag)
-    token = get_request_token + 1
-    begin
-      resp = FixityConstants::S3_CONTROL_CLIENT.create_job({
-        account_id: FixityConstants::ACCOUNT_ID,
-        confirmation_required: false,
-        operation: {
-          s3_initiate_restore_object: {
-            expiration_in_days: 1,
-            glacier_job_tier: "BULK", # accepts BULK, STANDARD
-          }
-        },
-        report: {
-          bucket: FixityConstants::BACKUP_BUCKET_ARN,
-          format: "Report_CSV_20180820", # accepts Report_CSV_20180820
-          enabled: true, # required
-          prefix: FixityConstants::BATCH_PREFIX,
-          report_scope: "FailedTasksOnly", # accepts AllTasks, FailedTasksOnly
-        },
-        client_request_token: "#{token}", # required
-        manifest: {
-          spec: { # required
-                  format: "S3BatchOperations_CSV_20180820", # required, accepts S3BatchOperations_CSV_20180820, S3InventoryReport_CSV_20161130
-                  fields: ["Bucket","Key"], # accepts Ignore, Bucket, Key, VersionId
-          },
-          location: { # required
-                  object_arn: "#{FixityConstants::BACKUP_BUCKET_ARN}/fixity/#{manifest}", # required
-                  etag: etag, # required
-          },
-        },
-        priority: 10,
-        role_arn: FixityConstants::BATCH_ROLE_ARN, # required
-      })
-      job_id = resp.job_id
-      put_job_id(job_id)
-      batch_job_message = "Batch restore job sent with id #{job_id}"
-      FixityConstants::LOGGER.info(batch_job_message)
-    rescue StandardError => e
-      error_message = "Error sending batch job: #{e.full_message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
-    FixityConstants::LOGGER.info(resp)
-    put_request_token(token)
+  def self.restore_item(dynamodb, s3, fixity_item)
+    key = unescape(fixity_item.s3_key)
+    s3.restore_item(Settings.s3.backup_bucket, key)
+    put_batch_item(dynamodb, fixity_item)
+
+  end
+
+  def self.send_batch_job(dynamodb, s3_control manifest, etag)
+    token = get_request_token(dynamodb) + 1
+    resp = s3_control.create_job(manifest, token, etag)
+    job_id = resp.job_id
+    put_job_id(dynamodb, job_id)
+    batch_job_message = "Batch restore job sent with id #{job_id}"
+    FixityConstants::LOGGER.info(batch_job_message)
+    put_request_token(dynamodb, token)
   end
 
   def self.get_request_token(dynamodb)

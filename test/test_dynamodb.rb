@@ -7,7 +7,7 @@ require 'config'
 require_relative '../lib/fixity/dynamodb'
 class TestDynamodb < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
-  def setup()
+  def setup
 
   end
 
@@ -44,7 +44,7 @@ class TestDynamodb < Minitest::Test
     end
   end
 
-  def test_get_put_requests_returns_mutltiple_arrays_when_more_than_26_elements
+  def test_get_put_requests_returns_multiple_arrays_when_more_than_26_elements
     test_batch = %w[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26]
     test_batch_items = Dynamodb.get_put_requests(test_batch)
     assert_equal(test_batch_items.size, 2)
@@ -154,6 +154,28 @@ class TestDynamodb < Minitest::Test
                               1,
                               { ":s3_key" => "123/test.tst",},
                               "#{Settings.aws.dynamo_db.s3_key} = :s3_key")
+    mock_dynamodb_client.verify
+  end
+
+  def test_scan_format
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {table_name: "TestTable",
+                         limit: 1}
+    mock_dynamodb_client.expect(:scan, [], [args_verification])
+    dynamodb.scan("TestTable",
+                   1,)
+    mock_dynamodb_client.verify
+  end
+
+  def test_delete_item_format
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {key: {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         table_name: "TestTable"}
+    mock_dynamodb_client.expect(:delete_item, [], [args_verification])
+    dynamodb.delete_item({Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         "TestTable")
     mock_dynamodb_client.verify
   end
 end

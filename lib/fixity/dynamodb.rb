@@ -4,9 +4,8 @@ require 'config'
 require_relative 'fixity_constants'
 class Dynamodb
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
-  @dynamodb_client = Aws::DynamoDB::Client.new(region: Settings.aws.region_west)
   attr_accessor :dynamodb_client
-  def initialize(dynamodb_client)
+  def initialize( dynamodb_client = FixityConstants::DYNAMODB_CLIENT)
     @dynamodb_client = dynamodb_client
   end
 

@@ -4,27 +4,32 @@ require 'aws-sdk-s3'
 require 'aws-sdk-sqs'
 require 'aws-sdk-s3control'
 require 'csv'
-require 'confid'
+require 'config'
 
 require_relative 'fixity/dynamodb'
+require_relative 'fixity/s3'
+require_relative 'fixity/s3_control'
 require_relative 'fixity/fixity_constants'
 
 class ProcessBatchReports
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   def self.process_failures
     #TODO move job ids to separate dynamodb table
-    job_id = get_job_id
+    dynamodb = Dynamodb.new()
+    s3 = S3.new()
+    s3_control = S3Control.new()
+    job_id = get_job_id(dynamodb)
 
-    job_failures = get_tasks_failed(job_id)
+    job_failures = get_tasks_failed(s3_control, job_id)
     return nil if job_failures.zero?
 
-    manifest_key = get_manifest_key(job_id)
-    error_batch = parse_completion_report(manifest_key)
+    manifest_key = get_manifest_key(s3, job_id)
+    error_batch = parse_completion_report(dynamodb, s3, manifest_key)
     return nil if error_batch.empty?
 
-    Dynamodb.put_batch_items_in_table(FixityConstants::RESTORATION_ERRORS_TABLE_NAME, error_batch)
+    Dynamodb.put_batch_items_in_table(Settings.aws.dynamo_db.restoration_errors_table_name, error_batch)
 
-    remove_job_id
+    remove_job_id(dynamodb, job_id)
   end
 
   def self.get_job_id(dynamodb)
@@ -35,8 +40,8 @@ class ProcessBatchReports
   end
 
   #TODO refactor to separate duration from failures, add in check to see if job is complete
-  def self.get_tasks_failed(job_id)
-    describe_resp = FixityConstants::S3_CONTROL_CLIENT.describe_job(account_id: FixityConstants::ACCOUNT_ID, job_id: job_id)
+  def self.get_tasks_failed(s3_control, job_id)
+    describe_resp = s3_control.describe_job(job_id)
     job_status = describe_resp.job.status
     job_duration = describe_resp.job.progress_summary.timers.elapsed_time_in_active_seconds
     job_tasks = describe_resp.job.progress_summary.total_number_of_tasks
@@ -44,36 +49,29 @@ class ProcessBatchReports
     return describe_resp.job.progress_summary.number_of_tasks_failed
   end
 
-  def self.get_manifest_key(job_id)
-    s3_json_resp = FixityConstants::S3_CLIENT.get_object({
-      bucket: FixityConstants::BACKUP_BUCKET, # required
-      key: "#{FixityConstants::BATCH_PREFIX}/job-#{job_id}/manifest.json", # required
-    })
-    key = JSON.parse(s3_json_resp.body.read)["Results"][0]["Key"]
-
-    return key
+  def self.get_manifest_key(s3, job_id)
+    key = "#{Settings.aws.batch_prefix}/job-#{job_id}/manifest.json"
+    s3_json_resp = s3.get_object(Settings.s3.backup_bucket, key)
+    manifest_key = JSON.parse(s3_json_resp.body.read)["Results"][0]["Key"]
+    return manifest_key
   end
 
-  def self.parse_completion_report(manifest_key)
-
-    FixityConstants::S3_CLIENT.get_object({
-                       bucket: FixityConstants::BACKUP_BUCKET, # required
-                       key: manifest_key, # required
-                       response_target: './report.csv',
-                     })
+  def self.parse_completion_report(dynamodb, s3, manifest_key)
+    response_target = './report.csv'
+    s3.get_object_to_response_target(Settings.s3.backup_bucket, manifest_key, response_target)
     batch_completion_table = CSV.new(File.read("report.csv"))
     error_batch = []
     batch_completion_table.each do |row|
       bucket, key, version_id, task_status, error_code, https_status_code, result_message = row
-      file_id = get_file_id(key)
+      file_id = get_file_id(dynamodb, key)
       error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{error_code}:#{https_status_code}"
       FixityConstants::LOGGER.error(error_message)
       error_hash = {
-        FixityConstants::S3_KEY => key,
-        FixityConstants::FILE_ID => file_id,
-        FixityConstants::ERR_CODE => error_code,
-        FixityConstants::HTTPS_STATUS_CODE => https_status_code,
-        FixityConstants::LAST_UPDATED => Time.now.getutc.iso8601(3)
+        Settings.aws.dynamo_db.s3_key => key,
+        Settings.aws.dynamo_db.file_id => file_id,
+        Settings.aws.dynamo_db.err_code => error_code,
+        Settings.aws.dynamo_db.https_status_code => https_status_code,
+        Settings.aws.dynamo_db.last_updated => Time.now.getutc.iso8601(3)
       }
       error_batch.push(error_hash)
     end

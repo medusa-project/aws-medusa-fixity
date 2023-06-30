@@ -5,16 +5,21 @@ require 'cgi'
 require 'config'
 
 require_relative 'fixity/dynamodb'
+require_relative 'fixity/s3'
 require_relative 'fixity/fixity_constants.rb'
-require_relative 'send_message.rb'
+require_relative 'sqs.rb'
 
 class Fixity
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   MEGABYTE = 1024 * 1024
 
-  def self.run_fixity
+  def self.run_fixity()
     #get object info from dynamodb
-    fixity_item = get_fixity_item
+    dynamodb = Dynamodb.new()
+    s3 = S3.new()
+    s3_control = S3Control.new()
+
+    fixity_item = get_fixity_item(dynamodb)
 
     s3_key = fixity_item[Settings.aws.dynamo_db.s3_key]
     file_id = fixity_item[Settings.aws.dynamo_db.file_id].to_i
@@ -25,39 +30,43 @@ class Fixity
     FixityConstants::LOGGER.info(message)
 
     #update dynamodb table to remove fixity ready and set fixity status
-    update_fixity_ready(s3_key)
+    update_fixity_ready(dynamodb_client, s3_key)
 
     #compare calculated checksum with initial checksum
-    calculated_checksum = calculate_checksum(s3_key, file_id, file_size)
+    calculated_checksum = calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
 
     fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamo_db.match : Settings.aws.dynamo_db.mismatch
 
     case fixity_outcome
     when Settings.aws.dynamo_db.match
       #update dynamodb calculated checksum, fixity status, fixity verification
-      update_fixity_match(s3_key, calculated_checksum)
+      update_fixity_match(dynamodb, s3_key, calculated_checksum)
     when Settings.aws.dynamo_db.mismatch
       #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
-      update_fixity_mismatch(s3_key, calculated_checksum)
+      update_fixity_mismatch(dynamodb, s3_key, calculated_checksum)
     else
       outcome_message = "Fixity outcome not recognized"
       FixityConstants::LOGGER.error(outcome_message)
     end
 
     # send sqs to medusa with result
-    #SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
+    #Sqs.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
   end
 
-  def self.run_fixity_batch
+  def self.run_fixity_batch()
+    dynamodb = Dynamodb.new()
+    s3 = S3.new()
+    s3_control = S3Control.new()
+
     #get fixity ready batch info from dynamodb
-    fixity_batch = get_fixity_batch
+    fixity_batch = get_fixity_batch(dynamodb)
     return nil if fixity_batch.nil? || fixity_batch.empty?
 
     #update dynamodb table to remove fixity ready and set fixity status
     update_fixity_ready_batch = get_update_fixity_ready_batch(fixity_batch)
     return nil if update_fixity_ready_batch.empty?
 
-    Dynamodb.batch_write_items(FixityConstants::FIXITY_TABLE_NAME, update_fixity_ready_batch)
+    dynamodb.batch_write_items(Settings.aws.dynamo_db.fixity_table_name, update_fixity_ready_batch)
 
     fixity_batch.each do |fixity_item|
 
@@ -70,24 +79,24 @@ class Fixity
       FixityConstants::LOGGER.info(message)
 
       #compare calculated checksum with initial checksum
-      calculated_checksum = calculate_checksum(s3_key, file_id, file_size)
+      calculated_checksum = calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
 
       fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamo_db.match : Settings.aws.dynamo_db.mismatch
 
       case fixity_outcome
       when Settings.aws.dynamo_db.match
         #update dynamodb calculated checksum, fixity status, fixity verification
-        update_fixity_match(s3_key, calculated_checksum)
+        update_fixity_match(dynamodb, s3_key, calculated_checksum)
       when Settings.aws.dynamo_db.mismatch
         #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
-        update_fixity_mismatch(s3_key, calculated_checksum)
+        update_fixity_mismatch(dynamodb, s3_key, calculated_checksum)
       else
         outcome_message = "Fixity outcome not recognized"
         FixityConstants::LOGGER.error(outcome_message)
       end
 
       # send sqs to medusa with result
-      #SendMessage.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
+      #Sqs.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
     end
   end
 
@@ -98,7 +107,7 @@ class Fixity
     expr_attr_vals = {":ready" => Settings.aws.dynamo_db.true,}
     key_cond_expr = "#{Settings.aws.dynamo_db.fixity_ready} = :ready"
     query_resp = dynamodb.query_with_index(table_name, index_name, limit, expr_attr_vals, key_cond_expr)
-    return nil if query_resp.nil?
+    return nil if query_resp.nil? || query_resp.empty?
     return query_resp.items[0]
   end
 
@@ -110,14 +119,14 @@ class Fixity
     expr_attr_vals = {":ready" => Settings.aws.dynamo_db.true,}
     key_cond_expr = "#{Settings.aws.dynamo_db.fixity_ready} = :ready"
     query_resp = dynamodb.query_with_index(table_name, index_name, limit, expr_attr_vals, key_cond_expr)
-    return nil if query_resp.items.nil?
+    return nil if query_resp.nil? ||  query_resp.empty? || query_resp.items.nil?
     return query_resp.items
   end
 
   def self.get_update_fixity_ready_batch(fixity_batch)
     put_requests = []
     fixity_batch.each do |fixity_item|
-      fixity_item[Settings.aws.dynamo_db.last_updated] = Time.now.getutc.iso8601(10)
+      fixity_item[Settings.aws.dynamo_db.last_updated] = Time.now.getutc.iso8601(3)
       fixity_item[Settings.aws.dynamo_db.fixity_status] = Settings.aws.dynamo_db.calculating
       fixity_item.delete(Settings.aws.dynamo_db.fixity_ready)
       put_requests << {
@@ -140,19 +149,17 @@ class Fixity
     dynamodb.update_item(Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr)
   end
 
-  def self.calculate_checksum(s3_key, file_id, file_size)
+  def self.calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
     # stream s3 object through md5 calculation in 16 mb chunks
     # compare with initial md5 checksum and send medusa result via sqs
     md5 = Digest::MD5.new
     download_size_start = 0
     download_size_end = 16*MEGABYTE
+    key = CGI.unescape(s3_key)
     begin
       while download_size_start < file_size
-        object_part = FixityConstants::S3_CLIENT.get_object({
-          bucket: Settings.aws.s3.backup_bucket, # required
-          key: CGI.unescape(s3_key), # required
-          range: "bytes=#{download_size_start}-#{download_size_end}"
-        })
+        range = "bytes=#{download_size_start}-#{download_size_end}"
+        object_part = s3.get_object_with_byte_range(Settings.aws.s3.backup_bucket, key, range)
         md5 << object_part.body.read
         download_size_end = download_size_end+1
         download_size_start = download_size_end
@@ -161,7 +168,7 @@ class Fixity
     rescue StandardError => e
       error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
-      update_fixity_error(s3_key)
+      update_fixity_error(dynamodb, s3_key)
       exit
     end
     md5.hexdigest
