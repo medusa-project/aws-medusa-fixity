@@ -33,11 +33,11 @@ class BatchRestoreFiles
     while batch_continue
       id_iterator, batch_continue  = get_id_iterator(id, max_id, batch_count)
       file_directories, medusa_files = get_files_in_batches(id, id_iterator)
-      batch_count = batch_count + medusa_files.size
       id = id_iterator
+      next if (file_directories.nil? || file_directories.empty?) || (medusa_files.nil? || medusa_files.empty?)
+      batch_count = batch_count + medusa_files.size
       directories = get_path_hash(file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
-
       Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
     end
 
@@ -151,6 +151,7 @@ class BatchRestoreFiles
   end
 
   def self.get_path_hash(file_directories)
+    return  nil if file_directories.nil?
     directories = Hash.new
     file_directories.each do |directory_id|
       path = String.new
