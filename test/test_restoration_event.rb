@@ -78,10 +78,26 @@ class TestRestorationEvent < Minitest::Test
   end
 
   def test_handle_expiration_done
-    skip
+    update_item_resp = Object.new
+    def update_item_resp.attributes = {Settings.aws.dynamo_db.fixity_status => Settings.aws.dynamo_db.done,
+                                       Settings.aws.dynamo_db.s3_key => "123/test.tst",
+                                       Settings.aws.dynamo_db.file_id => "123",
+                                       Settings.aws.dynamo_db.initial_checksum => "12345678901234567890123456789012"}
+    mock_dynamodb = Minitest::Mock.new
+    mock_s3 = Minitest::Mock.new
+    resp = RestorationEvent.handle_expiration(mock_dynamodb, mock_s3, update_item_resp)
+    assert_equal(false, resp)
   end
 
   def test_handle_expiration_error
-    skip
+    update_item_resp = Object.new
+    def update_item_resp.attributes = {Settings.aws.dynamo_db.fixity_status => Settings.aws.dynamo_db.error,
+                                       Settings.aws.dynamo_db.s3_key => "123/test.tst",
+                                       Settings.aws.dynamo_db.file_id => "123",
+                                       Settings.aws.dynamo_db.initial_checksum => "12345678901234567890123456789012"}
+    mock_dynamodb = Minitest::Mock.new
+    mock_s3 = Minitest::Mock.new
+    resp = RestorationEvent.handle_expiration(mock_dynamodb, mock_s3, update_item_resp)
+    assert_equal(false, resp)
   end
 end

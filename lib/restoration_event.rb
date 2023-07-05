@@ -85,16 +85,15 @@ class RestorationEvent
     return nil if update_item_resp.nil?
     fixity_status = update_item_resp.attributes[Settings.aws.dynamo_db.fixity_status]
     #TODO check this logic
-    if fixity_status != Settings.aws.dynamo_db.done && fixity_status != Settings.aws.dynamo_db.error
-      s3_key = update_item_resp.attributes[Settings.aws.dynamo_db.s3_key]
-      file_id = update_item_resp.attributes[Settings.aws.dynamo_db.file_id].to_i
-      initial_checksum = update_item_resp.attributes[Settings.aws.dynamo_db.initial_checksum]
-      message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
-      FixityConstants::LOGGER.info(message)
-      item = BatchItem.new(s3_key, file_id, initial_checksum)
+    return false unless (fixity_status != Settings.aws.dynamo_db.done && fixity_status != Settings.aws.dynamo_db.error)
+    s3_key = update_item_resp.attributes[Settings.aws.dynamo_db.s3_key]
+    file_id = update_item_resp.attributes[Settings.aws.dynamo_db.file_id].to_i
+    initial_checksum = update_item_resp.attributes[Settings.aws.dynamo_db.initial_checksum]
+    message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
+    FixityConstants::LOGGER.info(message)
+    item = BatchItem.new(s3_key, file_id, initial_checksum)
 
-      BatchRestoreFiles.restore_item(dynamodb, s3, item)
-    end
+    BatchRestoreFiles.restore_item(dynamodb, s3, item)
   end
 
 end
