@@ -13,11 +13,11 @@ class Fixity
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   MEGABYTE = 1024 * 1024
 
-  def self.run_fixity()
+  def self.run_fixity
     #get object info from dynamodb
-    dynamodb = Dynamodb.new()
-    s3 = S3.new()
-    s3_control = S3Control.new()
+    dynamodb = Dynamodb.new
+    s3 = S3.new
+    s3_control = S3Control.new
 
     fixity_item = get_fixity_item(dynamodb)
 
@@ -53,10 +53,10 @@ class Fixity
     #Sqs.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
   end
 
-  def self.run_fixity_batch()
-    dynamodb = Dynamodb.new()
-    s3 = S3.new()
-    s3_control = S3Control.new()
+  def self.run_fixity_batch
+    dynamodb = Dynamodb.new
+    s3 = S3.new
+    s3_control = S3Control.new
 
     #get fixity ready batch info from dynamodb
     fixity_batch = get_fixity_batch(dynamodb)
