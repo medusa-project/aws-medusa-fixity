@@ -13,11 +13,11 @@ class S3
 
   def put_object(body, bucket, key)
     begin
-      s3_resp = @s3_client.put_object(
+      s3_resp = @s3_client.put_object({
         body: body,
         bucket: bucket,
         key: key,
-        )
+      })
     rescue StandardError => e
       error_message = "Error putting object with key: #{key} in bucket #{bucket}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)

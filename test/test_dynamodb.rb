@@ -19,7 +19,7 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client.expect(:put_item, [], [args_verification])
     dynamodb.put_item("TestTable",
                          {Settings.aws.dynamo_db.s3_key => "123/test.tst"},)
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_get_put_requests_returns_array_of_arrays
@@ -47,7 +47,7 @@ class TestDynamodb < Minitest::Test
   def test_get_put_requests_returns_multiple_arrays_when_more_than_26_elements
     test_batch = %w[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26]
     test_batch_items = Dynamodb.get_put_requests(test_batch)
-    assert_equal(test_batch_items.size, 2)
+    assert_equal(2, test_batch_items.size)
   end
 
   def test_batch_write_items_returns_nil_when_write_requests_nil
@@ -70,7 +70,7 @@ class TestDynamodb < Minitest::Test
     args_verification = {request_items: {"TestTable" => %w[1 2 3] }}
     mock_dynamodb_client.expect(:batch_write_item, [], [args_verification])
     dynamodb.batch_write_items("TestTable", [%w[1 2 3]])
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_batch_write_items_formats_multiple_arrays
@@ -81,7 +81,7 @@ class TestDynamodb < Minitest::Test
     args_verification_2 = {request_items: {"TestTable" => %w[4 5 6] }}
     mock_dynamodb_client.expect(:batch_write_item, [], [args_verification_2])
     dynamodb.batch_write_items("TestTable", [%w[1 2 3], %w[4 5 6]])
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_update_item_format
@@ -101,7 +101,7 @@ class TestDynamodb < Minitest::Test
           {":test_value" => "testValue"},
               "SET #TV = :restoration_status",
                   "ALL_OLD")
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_update_item_default_ret_val_param
@@ -120,7 +120,7 @@ class TestDynamodb < Minitest::Test
                          {"#TV" => "testVal"},
                          {":test_value" => "testValue"},
                          "SET #TV = :restoration_status")
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_query_with_index_format
@@ -138,7 +138,7 @@ class TestDynamodb < Minitest::Test
                               1,
                               { ":s3_key" => "123/test.tst",},
                               "#{Settings.aws.dynamo_db.s3_key} = :s3_key")
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_query_format
@@ -154,7 +154,7 @@ class TestDynamodb < Minitest::Test
                               1,
                               { ":s3_key" => "123/test.tst",},
                               "#{Settings.aws.dynamo_db.s3_key} = :s3_key")
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_scan_format
@@ -165,7 +165,7 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client.expect(:scan, [], [args_verification])
     dynamodb.scan("TestTable",
                    1,)
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 
   def test_delete_item_format
@@ -176,6 +176,6 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client.expect(:delete_item, [], [args_verification])
     dynamodb.delete_item({Settings.aws.dynamo_db.s3_key => "123/test.tst"},
                          "TestTable")
-    assert_equal(mock_dynamodb_client.verify, true)
+    assert_mock(mock_dynamodb_client)
   end
 end

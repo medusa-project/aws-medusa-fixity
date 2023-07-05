@@ -237,13 +237,13 @@ class BatchRestoreFiles
   end
 
   def self.restore_item(dynamodb, s3, fixity_item)
-    key = unescape(fixity_item.s3_key)
-    s3.restore_item(Settings.s3.backup_bucket, key)
+    key = CGI.unescape(fixity_item.s3_key)
+    s3.restore_item(Settings.aws.s3.backup_bucket, key)
     put_batch_item(dynamodb, fixity_item)
 
   end
 
-  def self.send_batch_job(dynamodb, s3_control manifest, etag)
+  def self.send_batch_job(dynamodb, s3_control, manifest, etag)
     token = get_request_token(dynamodb) + 1
     resp = s3_control.create_job(manifest, token, etag)
     job_id = resp.job_id

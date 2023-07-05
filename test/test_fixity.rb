@@ -15,7 +15,7 @@ class TestFixity < Minitest::Test
     args_verification = [table_name, index_name, limit, expr_attr_vals, key_cond_expr]
     mock_dynamodb.expect(:query_with_index, [], args_verification)
     Fixity.get_fixity_item(mock_dynamodb)
-    assert_equal(mock_dynamodb.verify, true)
+    assert_mock(mock_dynamodb)
   end
 
   def test_get_fixity_item
@@ -57,7 +57,7 @@ class TestFixity < Minitest::Test
     args_verification = [table_name, index_name, limit, expr_attr_vals, key_cond_expr]
     mock_dynamodb.expect(:query_with_index, [], args_verification)
     Fixity.get_fixity_batch(mock_dynamodb)
-    assert_equal(mock_dynamodb.verify, true)
+    assert_mock(mock_dynamodb)
   end
 
   def test_get_fixity_batch
@@ -152,7 +152,7 @@ class TestFixity < Minitest::Test
     args_verification = [table_name, key, {}, expr_attr_vals, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Fixity.update_fixity_ready(mock_dynamodb, test_key)
-    assert_equal(mock_dynamodb.verify, true)
+    assert_mock(mock_dynamodb)
   end
 
   def test_calculate_checksum
@@ -167,7 +167,7 @@ class TestFixity < Minitest::Test
 
     s3.stub(:get_object_with_byte_range, object_part) do
       checksum = Fixity.calculate_checksum(s3, test_key, 123, file_size, mock_dynamodb)
-      assert_equal(checksum, "79a84828694ed3ed5482b6d33dea7dd7")
+      assert_equal("79a84828694ed3ed5482b6d33dea7dd7", checksum)
     end
   end
 
@@ -216,7 +216,7 @@ class TestFixity < Minitest::Test
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_match(mock_dynamodb, test_key, test_checksum)
-      assert_equal(mock_dynamodb.verify, true)
+      assert_mock(mock_dynamodb)
     end
   end
 
@@ -241,7 +241,7 @@ class TestFixity < Minitest::Test
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_mismatch(mock_dynamodb, test_key, test_checksum)
-      assert_equal(mock_dynamodb.verify, true)
+      assert_mock(mock_dynamodb)
     end
   end
 
@@ -261,7 +261,7 @@ class TestFixity < Minitest::Test
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_error(mock_dynamodb, test_key)
-      assert_equal(mock_dynamodb.verify, true)
+      assert_mock(mock_dynamodb)
     end
   end
 end

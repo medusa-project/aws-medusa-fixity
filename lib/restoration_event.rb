@@ -14,6 +14,7 @@ class RestorationEvent
   SQS_CLIENT = Aws::SQS::Client.new(region: Settings.aws.region_west)
   def self.handle_message
     dynamodb = Dynamodb.new
+    s3 = S3.new
     #TODO query for file id? Unsure if necessary or helpful
     response = SQS_CLIENT.receive_message(queue_url: Settings.aws.sqs.s3_queue_url,
                                                                 max_number_of_messages: 10,
@@ -37,7 +38,7 @@ class RestorationEvent
         handle_completed(dynamodb, s3_key, file_size, restore_timestamp)
       when Settings.aws.dynamo_db.restore_deleted
         #update dynamodb item to expired, remove fixity ready, and update last updated
-        handle_deleted(dynamodb, s3_key, file_size, restore_timestamp)
+        handle_deleted(dynamodb, s3, s3_key, file_size)
       else
         error_message = "Unknown restore type #{restore_type}"
         FixityConstants::LOGGER.error(error_message)
@@ -62,7 +63,7 @@ class RestorationEvent
     dynamodb.update_item(table_name, key, {}, expr_attr_values, update_expr)
   end
 
-  def self.handle_deleted(dynamodb, s3_key, file_size, restore_timestamp)
+  def self.handle_deleted(dynamodb, s3, s3_key, file_size)
     table_name = Settings.aws.dynamo_db.fixity_table_name
     key = { Settings.aws.dynamo_db.s3_key => s3_key }
     expr_attr_values = {
@@ -76,11 +77,11 @@ class RestorationEvent
                   "REMOVE #{Settings.aws.dynamo_db.fixity_ready}"
     ret_val =  "ALL_OLD"
     update_item_resp = dynamodb.update_item(table_name, key, {}, expr_attr_values, update_expr, ret_val)
-    handle_expiration(dynamodb, update_item_resp)
+    handle_expiration(dynamodb, s3, update_item_resp)
   end
 
   #TODO implement for batch processing
-  def self.handle_expiration(dynamodb, update_item_resp)
+  def self.handle_expiration(dynamodb, s3, update_item_resp)
     return nil if update_item_resp.nil?
     fixity_status = update_item_resp.attributes[Settings.aws.dynamo_db.fixity_status]
     #TODO check this logic
@@ -91,7 +92,7 @@ class RestorationEvent
       message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
       FixityConstants::LOGGER.info(message)
       item = BatchItem.new(s3_key, file_id, initial_checksum)
-      s3 = S3.new
+
       BatchRestoreFiles.restore_item(dynamodb, s3, item)
     end
   end

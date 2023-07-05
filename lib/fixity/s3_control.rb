@@ -13,7 +13,7 @@ class S3Control
 
   def describe_job(job_id)
     begin
-      resp = @s3_control_client.describe_job(account_id: Settings.aws.account_id, job_id: job_id)
+      resp = @s3_control_client.describe_job({account_id: Settings.aws.account_id, job_id: job_id})
     rescue StandardError => e
       error_message = "Error describing job: #{job_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
