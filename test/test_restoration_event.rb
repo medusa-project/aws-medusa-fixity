@@ -5,6 +5,7 @@ require_relative '../lib/restoration_event'
 require_relative '../lib/fixity/dynamodb'
 
 class TestRestorationEvent < Minitest::Test
+  Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
   def test_handle_completed
     mock_dynamodb = Minitest::Mock.new
     test_key = "123/test.tst"

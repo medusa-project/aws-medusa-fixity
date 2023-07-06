@@ -15,9 +15,9 @@ class ProcessBatchReports
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   def self.process_failures
     #TODO move job ids to separate dynamodb table
-    dynamodb = Dynamodb.new()
-    s3 = S3.new()
-    s3_control = S3Control.new()
+    dynamodb = Dynamodb.new
+    s3 = S3.new
+    s3_control = S3Control.new
     job_id = get_job_id(dynamodb)
 
     job_failures = get_tasks_failed(s3_control, job_id)
@@ -27,7 +27,7 @@ class ProcessBatchReports
     error_batch = parse_completion_report(dynamodb, s3, manifest_key)
     return nil if error_batch.empty?
 
-    Dynamodb.put_batch_items_in_table(Settings.aws.dynamo_db.restoration_errors_table_name, error_batch)
+    dynamodb.put_batch_items_in_table(Settings.aws.dynamo_db.restoration_errors_table_name, error_batch)
 
     remove_job_id(dynamodb, job_id)
   end
@@ -42,6 +42,7 @@ class ProcessBatchReports
   #TODO refactor to separate duration from failures, add in check to see if job is complete
   def self.get_tasks_failed(s3_control, job_id)
     describe_resp = s3_control.describe_job(job_id)
+    return nil if describe_resp.nil?
     job_status = describe_resp.job.status
     job_duration = describe_resp.job.progress_summary.timers.elapsed_time_in_active_seconds
     job_tasks = describe_resp.job.progress_summary.total_number_of_tasks
@@ -51,14 +52,14 @@ class ProcessBatchReports
 
   def self.get_manifest_key(s3, job_id)
     key = "#{Settings.aws.batch_prefix}/job-#{job_id}/manifest.json"
-    s3_json_resp = s3.get_object(Settings.s3.backup_bucket, key)
+    s3_json_resp = s3.get_object(Settings.aws.s3.backup_bucket, key)
     manifest_key = JSON.parse(s3_json_resp.body.read)["Results"][0]["Key"]
     return manifest_key
   end
 
   def self.parse_completion_report(dynamodb, s3, manifest_key)
     response_target = './report.csv'
-    s3.get_object_to_response_target(Settings.s3.backup_bucket, manifest_key, response_target)
+    s3.get_object_to_response_target(Settings.aws.s3.backup_bucket, manifest_key, response_target)
     batch_completion_table = CSV.new(File.read("report.csv"))
     error_batch = []
     batch_completion_table.each do |row|
@@ -78,7 +79,6 @@ class ProcessBatchReports
     return error_batch
   end
 
-  #TODO implement get file_id
   def self.get_file_id(dynamodb, s3_key)
     table_name = Settings.aws.dynamo_db.fixity_table_name
     limit = 1
@@ -86,7 +86,7 @@ class ProcessBatchReports
     key_cond_expr = "#{Settings.aws.dynamo_db.s3_key} = :s3_key"
     query_resp= dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
     return nil if query_resp.nil?
-    query_resp.items[0]["FileId"]
+    query_resp.items[0][Settings.aws.dynamo_db.file_id]
   end
 
   def self.remove_job_id(dynamodb, job_id)
