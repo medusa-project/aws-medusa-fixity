@@ -7,7 +7,7 @@ aws:
     sqs:
         medusa_queue_url: "https://sqs.us-east-2.amazonaws.com/721945215539/fixity-to-medusa-demo"
         s3_queue_url: "https://sqs.us-west-2.amazonaws.com/721945215539/s3-to-fixity-demo"
-    dynamo_db:
+    dynamodb:
         fixity_table_name: "FixityDemoTable"
         batch_job_ids_table_name: "FixityDemoBatchJobsTable"
         restoration_errors_table_name : "FixityDemoRestorationErrorsTable"

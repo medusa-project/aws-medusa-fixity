@@ -7,11 +7,11 @@ class TestFixity < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
   def test_get_fixity_item_params
     mock_dynamodb = Minitest::Mock.new
-    table_name = Settings.aws.dynamo_db.fixity_table_name
-    index_name = Settings.aws.dynamo_db.index_name
+    table_name = Settings.aws.dynamodb.fixity_table_name
+    index_name = Settings.aws.dynamodb.index_name
     limit = 1
-    expr_attr_vals = {":ready" => Settings.aws.dynamo_db.true,}
-    key_cond_expr = "#{Settings.aws.dynamo_db.fixity_ready} = :ready"
+    expr_attr_vals = {":ready" => Settings.aws.dynamodb.true,}
+    key_cond_expr = "#{Settings.aws.dynamodb.fixity_ready} = :ready"
     args_verification = [table_name, index_name, limit, expr_attr_vals, key_cond_expr]
     mock_dynamodb.expect(:query_with_index, [], args_verification)
     Fixity.get_fixity_item(mock_dynamodb)
@@ -49,11 +49,11 @@ class TestFixity < Minitest::Test
 
   def test_get_fixity_batch_params
     mock_dynamodb = Minitest::Mock.new
-    table_name = Settings.aws.dynamo_db.fixity_table_name
-    index_name = Settings.aws.dynamo_db.index_name
+    table_name = Settings.aws.dynamodb.fixity_table_name
+    index_name = Settings.aws.dynamodb.index_name
     limit = 25
-    expr_attr_vals = {":ready" => Settings.aws.dynamo_db.true,}
-    key_cond_expr = "#{Settings.aws.dynamo_db.fixity_ready} = :ready"
+    expr_attr_vals = {":ready" => Settings.aws.dynamodb.true,}
+    key_cond_expr = "#{Settings.aws.dynamodb.fixity_ready} = :ready"
     args_verification = [table_name, index_name, limit, expr_attr_vals, key_cond_expr]
     mock_dynamodb.expect(:query_with_index, [], args_verification)
     Fixity.get_fixity_batch(mock_dynamodb)
@@ -102,36 +102,36 @@ class TestFixity < Minitest::Test
   end
 
   def test_get_update_fixity_ready_batch_returns_array_of_arrays
-    fixity_batch = [{Settings.aws.dynamo_db.s3_key => "123/test.tst",
-                     Settings.aws.dynamo_db.last_updated => Time.new(0).getutc.iso8601(3),
-                     Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.completed,
-                     Settings.aws.dynamo_db.fixity_ready => Settings.aws.dynamo_db.true},
-                    {Settings.aws.dynamo_db.s3_key => "456/test.tst",
-                     Settings.aws.dynamo_db.last_updated => Time.new(1).getutc.iso8601(3),
-                     Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.completed,
-                     Settings.aws.dynamo_db.fixity_ready => Settings.aws.dynamo_db.true}]
+    fixity_batch = [{Settings.aws.dynamodb.s3_key => "123/test.tst",
+                     Settings.aws.dynamodb.last_updated => Time.new(0).getutc.iso8601(3),
+                     Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.completed,
+                     Settings.aws.dynamodb.fixity_ready => Settings.aws.dynamodb.true},
+                    {Settings.aws.dynamodb.s3_key => "456/test.tst",
+                     Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3),
+                     Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.completed,
+                     Settings.aws.dynamodb.fixity_ready => Settings.aws.dynamodb.true}]
     updated_batch = Fixity.get_update_fixity_ready_batch(fixity_batch)
     assert_instance_of(Array, updated_batch)
     assert_instance_of(Array, updated_batch[0])
   end
 
   def test_get_update_fixity_ready
-    fixity_batch = [{Settings.aws.dynamo_db.s3_key => "123/test.tst",
-                     Settings.aws.dynamo_db.last_updated => Time.new(0).getutc.iso8601(3),
-                     Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.completed,
-                     Settings.aws.dynamo_db.fixity_ready => Settings.aws.dynamo_db.true},
-                    {Settings.aws.dynamo_db.s3_key => "456/test.tst",
-                     Settings.aws.dynamo_db.last_updated => Time.new(1).getutc.iso8601(3),
-                     Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.completed,
-                     Settings.aws.dynamo_db.fixity_ready => Settings.aws.dynamo_db.true}]
-    expected_batch = [[{put_request:{item:{Settings.aws.dynamo_db.s3_key => "123/test.tst",
-                       Settings.aws.dynamo_db.last_updated => Time.new(2).getutc.iso8601(3),
-                       Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.completed,
-                       Settings.aws.dynamo_db.fixity_status => Settings.aws.dynamo_db.calculating}}},
-                      {put_request:{item:{Settings.aws.dynamo_db.s3_key => "456/test.tst",
-                       Settings.aws.dynamo_db.last_updated => Time.new(2).getutc.iso8601(3),
-                       Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.completed,
-                       Settings.aws.dynamo_db.fixity_status => Settings.aws.dynamo_db.calculating}}}]]
+    fixity_batch = [{Settings.aws.dynamodb.s3_key => "123/test.tst",
+                     Settings.aws.dynamodb.last_updated => Time.new(0).getutc.iso8601(3),
+                     Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.completed,
+                     Settings.aws.dynamodb.fixity_ready => Settings.aws.dynamodb.true},
+                    {Settings.aws.dynamodb.s3_key => "456/test.tst",
+                     Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3),
+                     Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.completed,
+                     Settings.aws.dynamodb.fixity_ready => Settings.aws.dynamodb.true}]
+    expected_batch = [[{put_request:{item:{Settings.aws.dynamodb.s3_key => "123/test.tst",
+                       Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3),
+                       Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.completed,
+                       Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating}}},
+                      {put_request:{item:{Settings.aws.dynamodb.s3_key => "456/test.tst",
+                       Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3),
+                       Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.completed,
+                       Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating}}}]]
 
     Time.stub(:now, Time.new(2)) do
       updated_batch = Fixity.get_update_fixity_ready_batch(fixity_batch)
@@ -142,13 +142,13 @@ class TestFixity < Minitest::Test
   def test_update_fixity_ready_params
     mock_dynamodb = Minitest::Mock.new
     test_key = "123/test.tst"
-    table_name = Settings.aws.dynamo_db.fixity_table_name
-    key = { Settings.aws.dynamo_db.s3_key => test_key }
-    expr_attr_vals = { ":fixity_status" => Settings.aws.dynamo_db.calculating,
+    table_name = Settings.aws.dynamodb.fixity_table_name
+    key = { Settings.aws.dynamodb.s3_key => test_key }
+    expr_attr_vals = { ":fixity_status" => Settings.aws.dynamodb.calculating,
                        ":timestamp" => Time.now.getutc.iso8601(3)}
-    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
-                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp "\
-                  "REMOVE #{Settings.aws.dynamo_db.fixity_ready}"
+    update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
+                  "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
     args_verification = [table_name, key, {}, expr_attr_vals, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Fixity.update_fixity_ready(mock_dynamodb, test_key)
@@ -179,16 +179,16 @@ class TestFixity < Minitest::Test
   #   range_verification = "bytes=0-16777216"
   #   s3_args_verification = [Settings.aws.s3.backup_bucket, test_key, range_verification]
   #   mock_s3.expect(:get_object_with_byte_range, [], s3_args_verification)
-  #   key = { Settings.aws.dynamo_db.s3_key => test_key }
-  #   expr_attr_names = {"#E" => Settings.aws.dynamo_db.error}
-  #   expr_attr_values = {":error" => Settings.aws.dynamo_db.true,
-  #                       ":fixity_status" => Settings.aws.dynamo_db.error,
+  #   key = { Settings.aws.dynamodb.s3_key => test_key }
+  #   expr_attr_names = {"#E" => Settings.aws.dynamodb.error}
+  #   expr_attr_values = {":error" => Settings.aws.dynamodb.true,
+  #                       ":fixity_status" => Settings.aws.dynamodb.error,
   #                       ":timestamp" => Time.new(2).getutc.iso8601(3)
   #   }
-  #   update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
-  #                     "#{Settings.aws.dynamo_db.last_updated} = :timestamp, " \
+  #   update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+  #                     "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
   #                     "#E = :error"
-  #   dynamodb_args_verification = [Settings.aws.dynamo_db.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr]
+  #   dynamodb_args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr]
   #   mock_dynamodb.expect(:update_item, [], dynamodb_args_verification)
   #   Time.stub(:now, Time.new(2)) do
   #     Fixity.calculate_checksum(mock_s3, test_key, 123, file_size, mock_dynamodb)
@@ -201,18 +201,18 @@ class TestFixity < Minitest::Test
     mock_dynamodb = Minitest::Mock.new
     test_key = "123/test.tst"
     test_checksum = "12345678901234567890123456789012"
-    key = { Settings.aws.dynamo_db.s3_key => test_key }
+    key = { Settings.aws.dynamodb.s3_key => test_key }
     expr_attr_values = {
-      ":fixity_status" => Settings.aws.dynamo_db.done,
-      ":fixity_outcome" => Settings.aws.dynamo_db.match,
+      ":fixity_status" => Settings.aws.dynamodb.done,
+      ":fixity_outcome" => Settings.aws.dynamodb.match,
       ":calculated_checksum" => test_checksum,
       ":timestamp" => Time.new(2).getutc.iso8601(3)
     }
-    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
-                      "#{Settings.aws.dynamo_db.fixity_outcome} = :fixity_outcome, " \
-                      "#{Settings.aws.dynamo_db.calculated_checksum} = :calculated_checksum, " \
-                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp"
-    args_verification = [Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr]
+    update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp"
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_match(mock_dynamodb, test_key, test_checksum)
@@ -224,20 +224,20 @@ class TestFixity < Minitest::Test
     mock_dynamodb = Minitest::Mock.new
     test_key = "123/test.tst"
     test_checksum = "12345678901234567890123456789012"
-    key = { Settings.aws.dynamo_db.s3_key => test_key }
+    key = { Settings.aws.dynamodb.s3_key => test_key }
     expr_attr_values = {
-      ":mismatch" => Settings.aws.dynamo_db.true,
-      ":fixity_status" => Settings.aws.dynamo_db.done,
-      ":fixity_outcome" => Settings.aws.dynamo_db.mismatch,
+      ":mismatch" => Settings.aws.dynamodb.true,
+      ":fixity_status" => Settings.aws.dynamodb.done,
+      ":fixity_outcome" => Settings.aws.dynamodb.mismatch,
       ":calculated_checksum" => test_checksum,
       ":timestamp" => Time.new(2).getutc.iso8601(3)
     }
-    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
-                      "#{Settings.aws.dynamo_db.fixity_outcome} = :fixity_outcome, " \
-                      "#{Settings.aws.dynamo_db.calculated_checksum} = :calculated_checksum, " \
-                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, " \
-                      "#{Settings.aws.dynamo_db.mismatch} = :mismatch"
-    args_verification = [Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr]
+    update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
+                      "#{Settings.aws.dynamodb.mismatch} = :mismatch"
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_mismatch(mock_dynamodb, test_key, test_checksum)
@@ -248,16 +248,16 @@ class TestFixity < Minitest::Test
   def test_update_fixity_error
     mock_dynamodb = Minitest::Mock.new
     test_key = "123/test.tst"
-    key = { Settings.aws.dynamo_db.s3_key => test_key }
-    expr_attr_names = {"#E" => Settings.aws.dynamo_db.error}
-    expr_attr_values = {":error" => Settings.aws.dynamo_db.true,
-                        ":fixity_status" => Settings.aws.dynamo_db.error,
+    key = { Settings.aws.dynamodb.s3_key => test_key }
+    expr_attr_names = {"#E" => Settings.aws.dynamodb.error}
+    expr_attr_values = {":error" => Settings.aws.dynamodb.true,
+                        ":fixity_status" => Settings.aws.dynamodb.error,
                         ":timestamp" => Time.new(2).getutc.iso8601(3)
     }
-    update_expr = "SET #{Settings.aws.dynamo_db.fixity_status} = :fixity_status, "\
-                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, " \
+    update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
                       "#E = :error"
-    args_verification = [Settings.aws.dynamo_db.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr]
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_error(mock_dynamodb, test_key)

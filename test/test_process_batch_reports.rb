@@ -9,7 +9,7 @@ class TestProcessBatchReports < Minitest::Test
 
   def test_get_job_id_returns_nill
     mock_dynamodb = Minitest::Mock.new
-    args_verification = [Settings.aws.dynamo_db.batch_job_ids_table_name, 1]
+    args_verification = [Settings.aws.dynamodb.batch_job_ids_table_name, 1]
     mock_dynamodb.expect(:scan, nil, args_verification)
     resp = ProcessBatchReports.get_job_id(mock_dynamodb)
     assert_nil(resp)
@@ -18,10 +18,10 @@ class TestProcessBatchReports < Minitest::Test
 
   def test_get_job_id_returns_job_id
     mock_dynamodb = Minitest::Mock.new
-    args_verification = [Settings.aws.dynamo_db.batch_job_ids_table_name, 1]
+    args_verification = [Settings.aws.dynamodb.batch_job_ids_table_name, 1]
     job_id = "job-123456789"
     scan_resp = Object.new
-    def scan_resp.items = [{Settings.aws.dynamo_db.job_id => "job-123456789"}]
+    def scan_resp.items = [{Settings.aws.dynamodb.job_id => "job-123456789"}]
     mock_dynamodb.expect(:scan, scan_resp, args_verification)
     resp = ProcessBatchReports.get_job_id(mock_dynamodb)
     assert_equal(job_id, resp)
@@ -85,7 +85,7 @@ class TestProcessBatchReports < Minitest::Test
     mock_s3 = Minitest::Mock.new
     response_target = './report.csv'
     manifest_key = "test/test-manifest.csv"
-    table_name = Settings.aws.dynamo_db.fixity_table_name
+    table_name = Settings.aws.dynamodb.fixity_table_name
     limit = 1
     key_1 = "123/test.tst"
     key_2 = "123/test1.tst"
@@ -93,13 +93,13 @@ class TestProcessBatchReports < Minitest::Test
     expr_attr_vals_1 = { ":s3_key" => key_1,}
     expr_attr_vals_2 = { ":s3_key" => key_2,}
     expr_attr_vals_3 = { ":s3_key" => key_3,}
-    key_cond_expr = "#{Settings.aws.dynamo_db.s3_key} = :s3_key"
+    key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :s3_key"
     query_resp1 = Object.new
-    def query_resp1.items = [{Settings.aws.dynamo_db.file_id => "1"}]
+    def query_resp1.items = [{Settings.aws.dynamodb.file_id => "1"}]
     query_resp2 = Object.new
-    def query_resp2.items = [{Settings.aws.dynamo_db.file_id => "2"}]
+    def query_resp2.items = [{Settings.aws.dynamodb.file_id => "2"}]
     query_resp3 = Object.new
-    def query_resp3.items = [{Settings.aws.dynamo_db.file_id => "3"}]
+    def query_resp3.items = [{Settings.aws.dynamodb.file_id => "3"}]
     dynamodb_args_ver_1 = [table_name, limit, expr_attr_vals_1, key_cond_expr]
     dynamodb_args_ver_2 = [table_name, limit, expr_attr_vals_2, key_cond_expr]
     dynamodb_args_ver_3 = [table_name, limit, expr_attr_vals_3, key_cond_expr]
@@ -110,25 +110,25 @@ class TestProcessBatchReports < Minitest::Test
     s3_args_verification = [Settings.aws.s3.backup_bucket, manifest_key, response_target]
     mock_s3.expect(:get_object_to_response_target, [], s3_args_verification)
     error_hash1 = {
-      Settings.aws.dynamo_db.s3_key => key_1,
-      Settings.aws.dynamo_db.file_id => "1",
-      Settings.aws.dynamo_db.err_code => "409",
-      Settings.aws.dynamo_db.https_status_code => "RestoreAlreadyInProgress",
-      Settings.aws.dynamo_db.last_updated => Time.new(1).getutc.iso8601(3)
+      Settings.aws.dynamodb.s3_key => key_1,
+      Settings.aws.dynamodb.file_id => "1",
+      Settings.aws.dynamodb.err_code => "409",
+      Settings.aws.dynamodb.https_status_code => "RestoreAlreadyInProgress",
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
     error_hash2 = {
-      Settings.aws.dynamo_db.s3_key => key_2,
-      Settings.aws.dynamo_db.file_id => "2",
-      Settings.aws.dynamo_db.err_code => "409",
-      Settings.aws.dynamo_db.https_status_code => "RestoreAlreadyInProgress",
-      Settings.aws.dynamo_db.last_updated => Time.new(1).getutc.iso8601(3)
+      Settings.aws.dynamodb.s3_key => key_2,
+      Settings.aws.dynamodb.file_id => "2",
+      Settings.aws.dynamodb.err_code => "409",
+      Settings.aws.dynamodb.https_status_code => "RestoreAlreadyInProgress",
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
     error_hash3 = {
-      Settings.aws.dynamo_db.s3_key => key_3,
-      Settings.aws.dynamo_db.file_id => "3",
-      Settings.aws.dynamo_db.err_code => "200",
-      Settings.aws.dynamo_db.https_status_code => "PermanentFailure",
-      Settings.aws.dynamo_db.last_updated => Time.new(1).getutc.iso8601(3)
+      Settings.aws.dynamodb.s3_key => key_3,
+      Settings.aws.dynamodb.file_id => "3",
+      Settings.aws.dynamodb.err_code => "200",
+      Settings.aws.dynamodb.https_status_code => "PermanentFailure",
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
     exp_error_batch = [error_hash1, error_hash2, error_hash3]
     Time.stub(:now, Time.new(1)) do
@@ -140,12 +140,12 @@ class TestProcessBatchReports < Minitest::Test
 
   def test_get_file_id
     mock_dynamodb = Minitest::Mock.new
-    table_name = Settings.aws.dynamo_db.fixity_table_name
+    table_name = Settings.aws.dynamodb.fixity_table_name
     query_resp = Object.new
-    def query_resp.items = [{Settings.aws.dynamo_db.file_id => "123"}]
+    def query_resp.items = [{Settings.aws.dynamodb.file_id => "123"}]
     limit = 1
     expr_attr_vals = { ":s3_key" => "123/test.tst",}
-    key_cond_expr = "#{Settings.aws.dynamo_db.s3_key} = :s3_key"
+    key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :s3_key"
     args_verification = [table_name, limit, expr_attr_vals, key_cond_expr]
     mock_dynamodb.expect(:query, query_resp, args_verification)
     file_id = ProcessBatchReports.get_file_id(mock_dynamodb, "123/test.tst")
@@ -156,8 +156,8 @@ class TestProcessBatchReports < Minitest::Test
   def test_remove_job_id
     mock_dynamodb = Minitest::Mock.new
     job_id = "job-123456789"
-    key = { Settings.aws.dynamo_db.job_id => job_id,}
-    args_verification = [key, Settings.aws.dynamo_db.batch_job_ids_table_name]
+    key = { Settings.aws.dynamodb.job_id => job_id,}
+    args_verification = [key, Settings.aws.dynamodb.batch_job_ids_table_name]
     mock_dynamodb.expect(:delete_item, [], args_verification)
     ProcessBatchReports.remove_job_id(mock_dynamodb, job_id)
     assert_mock(mock_dynamodb)

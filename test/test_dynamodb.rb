@@ -15,10 +15,10 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client = Minitest::Mock.new
     dynamodb = Dynamodb.new(mock_dynamodb_client)
     args_verification = {table_name: "TestTable",
-                         item: {Settings.aws.dynamo_db.s3_key => "123/test.tst"}}
+                         item: {Settings.aws.dynamodb.s3_key => "123/test.tst"}}
     mock_dynamodb_client.expect(:put_item, [], [args_verification])
     dynamodb.put_item("TestTable",
-                         {Settings.aws.dynamo_db.s3_key => "123/test.tst"},)
+                         {Settings.aws.dynamodb.s3_key => "123/test.tst"},)
     assert_mock(mock_dynamodb_client)
   end
 
@@ -88,7 +88,7 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client = Minitest::Mock.new
     dynamodb = Dynamodb.new(mock_dynamodb_client)
     args_verification = {table_name: "TestTable",
-                         key: {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         key: {Settings.aws.dynamodb.s3_key => "123/test.tst"},
                          expression_attribute_names: {"#TV" => "testVal"},
                          expression_attribute_values: {":test_value" => "testValue"},
                          update_expression: "SET #TV = :restoration_status",
@@ -96,7 +96,7 @@ class TestDynamodb < Minitest::Test
 
     mock_dynamodb_client.expect(:update_item, [], [args_verification])
     dynamodb.update_item("TestTable",
-                    {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                    {Settings.aws.dynamodb.s3_key => "123/test.tst"},
            {"#TV" => "testVal"},
           {":test_value" => "testValue"},
               "SET #TV = :restoration_status",
@@ -108,7 +108,7 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client = Minitest::Mock.new
     dynamodb = Dynamodb.new(mock_dynamodb_client)
     args_verification = {table_name: "TestTable",
-                         key: {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         key: {Settings.aws.dynamodb.s3_key => "123/test.tst"},
                          expression_attribute_names: {"#TV" => "testVal"},
                          expression_attribute_values: {":test_value" => "testValue"},
                          update_expression: "SET #TV = :restoration_status",
@@ -116,7 +116,7 @@ class TestDynamodb < Minitest::Test
 
     mock_dynamodb_client.expect(:update_item, [], [args_verification])
     dynamodb.update_item("TestTable",
-                         {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+                         {Settings.aws.dynamodb.s3_key => "123/test.tst"},
                          {"#TV" => "testVal"},
                          {":test_value" => "testValue"},
                          "SET #TV = :restoration_status")
@@ -131,13 +131,13 @@ class TestDynamodb < Minitest::Test
                          limit: 1,
                          scan_index_forward: true,
                          expression_attribute_values: {":s3_key" => "123/test.tst",},
-                         key_condition_expression: "#{Settings.aws.dynamo_db.s3_key} = :s3_key",}
+                         key_condition_expression: "#{Settings.aws.dynamodb.s3_key} = :s3_key",}
     mock_dynamodb_client.expect(:query, [], [args_verification])
     dynamodb.query_with_index("TestTable",
                               "TestIndex",
                               1,
                               { ":s3_key" => "123/test.tst",},
-                              "#{Settings.aws.dynamo_db.s3_key} = :s3_key")
+                              "#{Settings.aws.dynamodb.s3_key} = :s3_key")
     assert_mock(mock_dynamodb_client)
   end
 
@@ -148,12 +148,12 @@ class TestDynamodb < Minitest::Test
                          limit: 1,
                          scan_index_forward: true,
                          expression_attribute_values: {":s3_key" => "123/test.tst",},
-                         key_condition_expression: "#{Settings.aws.dynamo_db.s3_key} = :s3_key",}
+                         key_condition_expression: "#{Settings.aws.dynamodb.s3_key} = :s3_key",}
     mock_dynamodb_client.expect(:query, [], [args_verification])
     dynamodb.query("TestTable",
                               1,
                               { ":s3_key" => "123/test.tst",},
-                              "#{Settings.aws.dynamo_db.s3_key} = :s3_key")
+                              "#{Settings.aws.dynamodb.s3_key} = :s3_key")
     assert_mock(mock_dynamodb_client)
   end
 
@@ -171,10 +171,10 @@ class TestDynamodb < Minitest::Test
   def test_delete_item_format
     mock_dynamodb_client = Minitest::Mock.new
     dynamodb = Dynamodb.new(mock_dynamodb_client)
-    args_verification = {key: {Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+    args_verification = {key: {Settings.aws.dynamodb.s3_key => "123/test.tst"},
                          table_name: "TestTable"}
     mock_dynamodb_client.expect(:delete_item, [], [args_verification])
-    dynamodb.delete_item({Settings.aws.dynamo_db.s3_key => "123/test.tst"},
+    dynamodb.delete_item({Settings.aws.dynamodb.s3_key => "123/test.tst"},
                          "TestTable")
     assert_mock(mock_dynamodb_client)
   end

@@ -27,16 +27,16 @@ class ProcessBatchReports
     error_batch = parse_completion_report(dynamodb, s3, manifest_key)
     return nil if error_batch.empty?
 
-    dynamodb.put_batch_items_in_table(Settings.aws.dynamo_db.restoration_errors_table_name, error_batch)
+    dynamodb.put_batch_items_in_table(Settings.aws.dynamodb.restoration_errors_table_name, error_batch)
 
     remove_job_id(dynamodb, job_id)
   end
 
   def self.get_job_id(dynamodb)
-    table_name = Settings.aws.dynamo_db.batch_job_ids_table_name
+    table_name = Settings.aws.dynamodb.batch_job_ids_table_name
     scan_resp = dynamodb.scan(table_name, 1)
     return nil if scan_resp.nil?
-    return scan_resp.items[0][Settings.aws.dynamo_db.job_id]
+    return scan_resp.items[0][Settings.aws.dynamodb.job_id]
   end
 
   #TODO refactor to separate duration from failures, add in check to see if job is complete
@@ -68,11 +68,11 @@ class ProcessBatchReports
       error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{error_code}:#{https_status_code}"
       FixityConstants::LOGGER.error(error_message)
       error_hash = {
-        Settings.aws.dynamo_db.s3_key => key,
-        Settings.aws.dynamo_db.file_id => file_id,
-        Settings.aws.dynamo_db.err_code => error_code,
-        Settings.aws.dynamo_db.https_status_code => https_status_code,
-        Settings.aws.dynamo_db.last_updated => Time.now.getutc.iso8601(3)
+        Settings.aws.dynamodb.s3_key => key,
+        Settings.aws.dynamodb.file_id => file_id,
+        Settings.aws.dynamodb.err_code => error_code,
+        Settings.aws.dynamodb.https_status_code => https_status_code,
+        Settings.aws.dynamodb.last_updated => Time.now.getutc.iso8601(3)
       }
       error_batch.push(error_hash)
     end
@@ -80,18 +80,18 @@ class ProcessBatchReports
   end
 
   def self.get_file_id(dynamodb, s3_key)
-    table_name = Settings.aws.dynamo_db.fixity_table_name
+    table_name = Settings.aws.dynamodb.fixity_table_name
     limit = 1
     expr_attr_vals = { ":s3_key" => s3_key,}
-    key_cond_expr = "#{Settings.aws.dynamo_db.s3_key} = :s3_key"
+    key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :s3_key"
     query_resp= dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
     return nil if query_resp.nil?
-    query_resp.items[0][Settings.aws.dynamo_db.file_id]
+    query_resp.items[0][Settings.aws.dynamodb.file_id]
   end
 
   def self.remove_job_id(dynamodb, job_id)
-    key = { Settings.aws.dynamo_db.job_id => job_id,}
-    table_name = Settings.aws.dynamo_db.batch_job_ids_table_name
+    key = { Settings.aws.dynamodb.job_id => job_id,}
+    table_name = Settings.aws.dynamodb.batch_job_ids_table_name
     dynamodb.delete_item(key, table_name)
   end
 end

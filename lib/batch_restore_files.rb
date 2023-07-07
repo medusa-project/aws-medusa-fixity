@@ -24,12 +24,13 @@ class BatchRestoreFiles
     dynamodb = Dynamodb.new
     s3 = S3.new
     s3_control = S3Control.new
+    medusa_db = FixitySecrets::MEDUSA_DB
 
     time_start = Time.now
     id = get_medusa_id(dynamodb)
     return nil if id.nil?
 
-    max_id = get_max_id
+    max_id = get_max_id(medusa_db)
     return nil if max_id.nil?
 
     evaluate_done(id, max_id) #TODO return if true?
@@ -40,13 +41,13 @@ class BatchRestoreFiles
     batch_continue = true
     while batch_continue
       id_iterator, batch_continue  = get_id_iterator(id, max_id, batch_count)
-      file_directories, medusa_files = get_files_in_batches(id, id_iterator)
+      file_directories, medusa_files = get_files_in_batches(medusa_db, id, id_iterator)
       batch_count = batch_count + medusa_files.size
       id = id_iterator
-      directories = get_path_hash(file_directories)
+      directories = get_path_hash(medusa_db, file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
 
-      Dynamodb.put_batch_items_in_table(Settings.aws.dynamo_db.fixity_table_name, batch)
+      Dynamodb.put_batch_items_in_table(Settings.aws.dynamodb.fixity_table_name, batch)
     end
 
     put_medusa_id(dynamodb, id)
@@ -60,12 +61,13 @@ class BatchRestoreFiles
   end
 
   def self.get_batch_restore_from_list(list)
-    dynamodb = Dynamodb.new()
-    s3 = S3.new()
-    s3_control = S3Control.new()
+    dynamodb = Dynamodb.new
+    s3 = S3.new
+    s3_control = S3Control.new
+    medusa_db = FixitySecrets::MEDUSA_DB
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
-    file_directories, medusa_files = get_batch_from_list(list)
-    directories = get_path_hash(file_directories)
+    file_directories, medusa_files = get_batch_from_list(medusa_db, list)
+    directories = get_path_hash(medusa_db, file_directories)
     batch = generate_manifest(manifest, medusa_files, directories)
 
     #Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
@@ -84,8 +86,8 @@ class BatchRestoreFiles
     query_resp.items[0][Settings.aws.dynamodb.file_id].to_i
   end
 
-  def self.get_max_id
-    max_resp = FixitySecrets::MEDUSA_DB.exec("SELECT MAX(id) FROM cfs_files")
+  def self.get_max_id(medusa_db)
+    max_resp = medusa_db.exec("SELECT MAX(id) FROM cfs_files")
     max_resp.first["max"].to_i
   end
 
@@ -108,19 +110,19 @@ class BatchRestoreFiles
     end
   end
 
-  def self.get_file(id)
+  def self.get_file(medusa_db, id)
     #TODO optimize to get multiple files per call to medusa DB
-    file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
+    file_result = medusa_db.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
     file_result.first
   end
 
-  def self.get_files_in_batches(id, id_iterator)
+  def self.get_files_in_batches(medusa_db, id, id_iterator)
     #TODO add batch size as class variable to keep track of file sizes
     # expand to take batch size into account
     # put medusa id in dynamodb at the end
     medusa_files = []
     file_directories = []
-    file_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_files WHERE id>#{id.to_s} AND  id<=#{id_iterator}")
+    file_result = medusa_db.exec( "SELECT * FROM cfs_files WHERE id>#{id.to_s} AND  id<=#{id_iterator}")
     file_result.each do |file_row|
       next if file_row.nil?
       file_id = file_row["id"]
@@ -134,9 +136,9 @@ class BatchRestoreFiles
     return file_directories.uniq!, medusa_files
   end
 
-  def self.get_path(directory_id, path)
+  def self.get_path(medusa_db, directory_id, path)
     while directory_id
-      dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
+      dir_result = medusa_db.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
       dir_row = dir_result.first
       dir_path = dir_row["path"]
       path.prepend(dir_path,'/')
@@ -147,13 +149,13 @@ class BatchRestoreFiles
     CGI.escape(path).gsub('%2F', '/')
   end
 
-  def self.get_path_hash(file_directories)
+  def self.get_path_hash(medusa_db, file_directories)
     directories = Hash.new
     file_directories.each do |directory_id|
       path = String.new
       file_directory = directory_id
       while directory_id
-        dir_result = FixitySecrets::MEDUSA_DB.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
+        dir_result = medusa_db.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
         dir_row = dir_result.first
         dir_path = dir_row["path"]
         path.prepend(dir_path,"/")
@@ -173,14 +175,14 @@ class BatchRestoreFiles
       path = directory_path + medusa_file.name
       s3_key = CGI.escape(path).gsub('%2F', '/')
       open(manifest, 'a') { |f|
-        f.puts "#{Settings.s3.backup_bucket},#{s3_key}"
+        f.puts "#{Settings.aws.s3.backup_bucket},#{s3_key}"
       }
       batch_hash = {
-        Settings.aws.dynamo_db.s3_key => s3_key,
-        Settings.aws.dynamo_db.file_id => medusa_file.file_id,
-        Settings.aws.dynamo_db.initial_checksum => medusa_file.initial_checksum,
-        Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.requested,
-        Settings.aws.dynamo_db.last_updated => Time.now.getutc.iso8601(3)
+        Settings.aws.dynamodb.s3_key => s3_key,
+        Settings.aws.dynamodb.file_id => medusa_file.file_id,
+        Settings.aws.dynamodb.initial_checksum => medusa_file.initial_checksum,
+        Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+        Settings.aws.dynamodb.last_updated => Time.now.getutc.iso8601(3)
       }
       # put_batch_item(batch_item)
       batch.push(batch_hash)
@@ -197,14 +199,14 @@ class BatchRestoreFiles
     dynamodb.put_item(table_name, item)
   end
 
-  def self.put_batch_item(dynamodb, fixity_item)
-    table_name = Settings.aws.dynamo_db.fixity_table_name
+  def self.put_batch_item(dynamodb, batch_item)
+    table_name = Settings.aws.dynamodb.fixity_table_name
     item = {
-      Settings.aws.dynamo_db.s3_key => fixity_item.s3_key,
-      Settings.aws.dynamo_db.file_id => fixity_item.file_id,
-      Settings.aws.dynamo_db.initial_checksum => fixity_item.initial_checksum,
-      Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.requested,
-      Settings.aws.dynamo_db.last_updated => Time.now.getutc.iso8601(3)
+      Settings.aws.dynamodb.s3_key => batch_item.s3_key,
+      Settings.aws.dynamodb.file_id => batch_item.file_id,
+      Settings.aws.dynamodb.initial_checksum => batch_item.initial_checksum,
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.now.getutc.iso8601(3)
     }
     dynamodb.put_item(table_name, item)
   end
@@ -212,15 +214,15 @@ class BatchRestoreFiles
   def self.put_manifest(s3, manifest)
     body = File.new(manifest)
     key = "fixity/#{manifest}"
-    s3_resp = s3.put_object(body, Settings.s3.backup_bucket, key)
+    s3_resp = s3.put_object(body, Settings.aws.s3.backup_bucket, key)
     s3_resp.etag
   end
 
-  def self.get_batch_from_list(list)
+  def self.get_batch_from_list(medusa_db, list)
     medusa_files = []
     file_directories = []
     list.each do |id|
-      file_row = get_file(id)
+      file_row = get_file(medusa_db, id)
       if file_row.nil?
         FixityConstants::LOGGER.error("File with id #{id} not found in medusa DB")
         next
@@ -236,11 +238,10 @@ class BatchRestoreFiles
     return file_directories.uniq!, medusa_files
   end
 
-  def self.restore_item(dynamodb, s3, fixity_item)
-    key = CGI.unescape(fixity_item.s3_key)
-    s3.restore_item(Settings.aws.s3.backup_bucket, key)
-    put_batch_item(dynamodb, fixity_item)
-
+  def self.restore_item(dynamodb, s3, batch_item)
+    key = CGI.unescape(batch_item.s3_key)
+    s3.restore_object(Settings.aws.s3.backup_bucket, key)
+    put_batch_item(dynamodb, batch_item)
   end
 
   def self.send_batch_job(dynamodb, s3_control, manifest, etag)
@@ -273,7 +274,7 @@ class BatchRestoreFiles
   end
 
   def self.put_job_id(dynamodb, job_id)
-    table_name = Settings.aws.dynamo_db.batch_job_ids_table_name
+    table_name = Settings.aws.dynamodb.batch_job_ids_table_name
     item = { Settings.aws.dynamodb.job_id => job_id, }
     dynamodb.put_item(table_name, item)
   end

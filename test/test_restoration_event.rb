@@ -11,18 +11,18 @@ class TestRestorationEvent < Minitest::Test
     test_key = "123/test.tst"
     file_size = 12345
     timestamp = Time.new(1)
-    key = { Settings.aws.dynamo_db.s3_key => test_key }
+    key = { Settings.aws.dynamodb.s3_key => test_key }
     expr_attr_values= {
-      ":restoration_status" => Settings.aws.dynamo_db.completed,
-      ":fixity_ready" => Settings.aws.dynamo_db.true,
+      ":restoration_status" => Settings.aws.dynamodb.completed,
+      ":fixity_ready" => Settings.aws.dynamodb.true,
       ":file_size" => file_size,
       ":timestamp" => timestamp
     }
-    update_expr = "SET #{Settings.aws.dynamo_db.restoration_status} = :restoration_status, "\
-                      "#{Settings.aws.dynamo_db.fixity_ready} = :fixity_ready, "\
-                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, "\
-                      "#{Settings.aws.dynamo_db.file_size} = :file_size"
-    args_verification = [Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr]
+    update_expr = "SET #{Settings.aws.dynamodb.restoration_status} = :restoration_status, "\
+                      "#{Settings.aws.dynamodb.fixity_ready} = :fixity_ready, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, "\
+                      "#{Settings.aws.dynamodb.file_size} = :file_size"
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     RestorationEvent.handle_completed(mock_dynamodb, test_key, file_size, timestamp)
     assert_mock(mock_dynamodb)
@@ -33,18 +33,18 @@ class TestRestorationEvent < Minitest::Test
     mock_s3 = Minitest::Mock.new
     test_key = "123/test.tst"
     file_size = 12345
-    key = { Settings.aws.dynamo_db.s3_key => test_key }
+    key = { Settings.aws.dynamodb.s3_key => test_key }
     expr_attr_values = {
-      ":restoration_status" => Settings.aws.dynamo_db.expired,
+      ":restoration_status" => Settings.aws.dynamodb.expired,
       ":file_size" => file_size,
       ":timestamp" => Time.new(2).getutc.iso8601(3)
     }
-    update_expr = "SET #{Settings.aws.dynamo_db.restoration_status} = :restoration_status, "\
-                      "#{Settings.aws.dynamo_db.last_updated} = :timestamp, "\
-                      "#{Settings.aws.dynamo_db.file_size} = :file_size "\
-                  "REMOVE #{Settings.aws.dynamo_db.fixity_ready}"
+    update_expr = "SET #{Settings.aws.dynamodb.restoration_status} = :restoration_status, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, "\
+                      "#{Settings.aws.dynamodb.file_size} = :file_size "\
+                  "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
     ret_val = "ALL_OLD"
-    args_verification = [Settings.aws.dynamo_db.fixity_table_name, key, {}, expr_attr_values, update_expr, ret_val]
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr, ret_val]
     mock_dynamodb.expect(:update_item, nil, args_verification)
     Time.stub(:now, Time.new(2)) do
       RestorationEvent.handle_deleted(mock_dynamodb, mock_s3, test_key, file_size)
@@ -54,22 +54,22 @@ class TestRestorationEvent < Minitest::Test
 
   def test_handle_expiration_expired
     update_item_resp = Object.new
-    def update_item_resp.attributes = {Settings.aws.dynamo_db.fixity_status => Settings.aws.dynamo_db.calculating,
-                                       Settings.aws.dynamo_db.s3_key => "123/test.tst",
-                                       Settings.aws.dynamo_db.file_id => "123",
-                                       Settings.aws.dynamo_db.initial_checksum => "12345678901234567890123456789012"}
+    def update_item_resp.attributes = {Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating,
+                                       Settings.aws.dynamodb.s3_key => "123/test.tst",
+                                       Settings.aws.dynamodb.file_id => "123",
+                                       Settings.aws.dynamodb.initial_checksum => "12345678901234567890123456789012"}
     mock_dynamodb = Minitest::Mock.new
     mock_s3 = Minitest::Mock.new
     s3_args_validation = [Settings.aws.s3.backup_bucket, "123/test.tst"]
     mock_s3.expect(:restore_item, [], s3_args_validation)
     item = {
-      Settings.aws.dynamo_db.s3_key => "123/test.tst",
-      Settings.aws.dynamo_db.file_id => 123,
-      Settings.aws.dynamo_db.initial_checksum => "12345678901234567890123456789012",
-      Settings.aws.dynamo_db.restoration_status => Settings.aws.dynamo_db.requested,
-      Settings.aws.dynamo_db.last_updated => Time.new(2).getutc.iso8601(3)
+      Settings.aws.dynamodb.s3_key => "123/test.tst",
+      Settings.aws.dynamodb.file_id => 123,
+      Settings.aws.dynamodb.initial_checksum => "12345678901234567890123456789012",
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3)
     }
-    dynamodb_args_validation = [Settings.aws.dynamo_db.fixity_table_name, item]
+    dynamodb_args_validation = [Settings.aws.dynamodb.fixity_table_name, item]
     mock_dynamodb.expect(:put_item, [], dynamodb_args_validation)
     Time.stub(:now, Time.new(2)) do
       RestorationEvent.handle_expiration(mock_dynamodb, mock_s3, update_item_resp)
@@ -80,10 +80,10 @@ class TestRestorationEvent < Minitest::Test
 
   def test_handle_expiration_done
     update_item_resp = Object.new
-    def update_item_resp.attributes = {Settings.aws.dynamo_db.fixity_status => Settings.aws.dynamo_db.done,
-                                       Settings.aws.dynamo_db.s3_key => "123/test.tst",
-                                       Settings.aws.dynamo_db.file_id => "123",
-                                       Settings.aws.dynamo_db.initial_checksum => "12345678901234567890123456789012"}
+    def update_item_resp.attributes = {Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.done,
+                                       Settings.aws.dynamodb.s3_key => "123/test.tst",
+                                       Settings.aws.dynamodb.file_id => "123",
+                                       Settings.aws.dynamodb.initial_checksum => "12345678901234567890123456789012"}
     mock_dynamodb = Minitest::Mock.new
     mock_s3 = Minitest::Mock.new
     resp = RestorationEvent.handle_expiration(mock_dynamodb, mock_s3, update_item_resp)
@@ -92,10 +92,10 @@ class TestRestorationEvent < Minitest::Test
 
   def test_handle_expiration_error
     update_item_resp = Object.new
-    def update_item_resp.attributes = {Settings.aws.dynamo_db.fixity_status => Settings.aws.dynamo_db.error,
-                                       Settings.aws.dynamo_db.s3_key => "123/test.tst",
-                                       Settings.aws.dynamo_db.file_id => "123",
-                                       Settings.aws.dynamo_db.initial_checksum => "12345678901234567890123456789012"}
+    def update_item_resp.attributes = {Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.error,
+                                       Settings.aws.dynamodb.s3_key => "123/test.tst",
+                                       Settings.aws.dynamodb.file_id => "123",
+                                       Settings.aws.dynamodb.initial_checksum => "12345678901234567890123456789012"}
     mock_dynamodb = Minitest::Mock.new
     mock_s3 = Minitest::Mock.new
     resp = RestorationEvent.handle_expiration(mock_dynamodb, mock_s3, update_item_resp)
