@@ -57,7 +57,23 @@ class Dynamodb
     end
   end
 
-  def update_item(table_name, key, expr_attr_names, expr_attr_values, update_expr, ret_val = 'NONE')
+  def update_item(table_name, key, expr_attr_values, update_expr, ret_val = 'NONE')
+    begin
+      update_resp = @dynamodb_client.update_item({
+        table_name: table_name,
+        key: key,
+        expression_attribute_values: expr_attr_values,
+        update_expression: update_expr,
+        return_values: ret_val
+      })
+    rescue StandardError => e
+      error_message = "Error updating #{table_name} key: #{key} with update expression: #{update_expr}. #{e.message}"
+      FixityConstants::LOGGER.error(error_message)
+    end
+    update_resp
+  end
+
+  def update_item_with_names(table_name, key, expr_attr_names, expr_attr_values, update_expr, ret_val = 'NONE')
     begin
       update_resp = @dynamodb_client.update_item({
         table_name: table_name,

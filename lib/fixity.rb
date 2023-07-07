@@ -144,7 +144,7 @@ class Fixity
     update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
-    dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr)
+    dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr)
   end
 
   def self.calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
@@ -184,7 +184,7 @@ class Fixity
                       "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
                       "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp"
-    dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr)
+    dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr)
 
   end
 
@@ -202,7 +202,7 @@ class Fixity
                       "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
                       "#{Settings.aws.dynamodb.mismatch} = :mismatch"
-    dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr)
+    dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr)
   end
 
   def self.update_fixity_error(dynamodb, s3_key)
@@ -218,7 +218,7 @@ class Fixity
     update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
                       "#E = :error"
-    dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr)
+    dynamodb.update_item_with_names(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr)
   end
 end
 

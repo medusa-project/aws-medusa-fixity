@@ -60,7 +60,7 @@ class RestorationEvent
                       "#{Settings.aws.dynamodb.fixity_ready} = :fixity_ready, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, "\
                       "#{Settings.aws.dynamodb.file_size} = :file_size"
-    dynamodb.update_item(table_name, key, {}, expr_attr_values, update_expr)
+    dynamodb.update_item(table_name, key, expr_attr_values, update_expr)
   end
 
   def self.handle_deleted(dynamodb, s3, s3_key, file_size)
@@ -76,7 +76,7 @@ class RestorationEvent
                       "#{Settings.aws.dynamodb.file_size} = :file_size "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
     ret_val =  "ALL_OLD"
-    update_item_resp = dynamodb.update_item(table_name, key, {}, expr_attr_values, update_expr, ret_val)
+    update_item_resp = dynamodb.update_item(table_name, key, expr_attr_values, update_expr, ret_val)
     handle_expiration(dynamodb, s3, update_item_resp)
   end
 
