@@ -1,10 +1,12 @@
 require 'minitest/autorun'
 require 'config'
+require 'csv'
 require 'json'
 
 require_relative '../lib/batch_restore_files'
 
 class TestBatchRestoreFiles < Minitest::Test
+  #TODO add testing for special character handling
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
   # def test_get_batch_restore_from_list
   #
@@ -126,15 +128,128 @@ class TestBatchRestoreFiles < Minitest::Test
   end
 
   def test_get_path
-    skip
+    row1 = [{"path" => "3", "parent_id" => 2, "parent_type" => "CfsDirectory"}]
+    row2 = [{"path" => "2", "parent_id" => 1, "parent_type" => "CfsDirectory"}]
+    row3 = [{"path" => "1", "parent_id" => nil, "parent_type" => nil}]
+    sql_1 = "SELECT * FROM cfs_directories WHERE id=#{3}"
+    sql_2 = "SELECT * FROM cfs_directories WHERE id=#{2}"
+    sql_3 = "SELECT * FROM cfs_directories WHERE id=#{1}"
+    path = "test.tst"
+    path_exp = "1/2/3/"+path
+    mock_medusa_db = Minitest::Mock.new
+    mock_medusa_db.expect(:exec, row1, [sql_1])
+    mock_medusa_db.expect(:exec, row2, [sql_2])
+    mock_medusa_db.expect(:exec, row3, [sql_3])
+    path_act = BatchRestoreFiles.get_path(mock_medusa_db, 3, path)
+    assert_equal(path_exp, path_act)
+    assert_mock(mock_medusa_db)
+  end
+
+  def test_get_path_not_cfs_dir
+    row1 = [{"path" => "6", "parent_id" => 5, "parent_type" => "CfsDirectory"}]
+    row2 = [{"path" => "5", "parent_id" => 4, "parent_type" => "CfsDirectory"}]
+    row3 = [{"path" => "4", "parent_id" => 3, "parent_type" => "FileGroup"}]
+    sql_1 = "SELECT * FROM cfs_directories WHERE id=#{6}"
+    sql_2 = "SELECT * FROM cfs_directories WHERE id=#{5}"
+    sql_3 = "SELECT * FROM cfs_directories WHERE id=#{4}"
+    path = "test.tst"
+    path_exp = "4/5/6/"+path
+    mock_medusa_db = Minitest::Mock.new
+    mock_medusa_db.expect(:exec, row1, [sql_1])
+    mock_medusa_db.expect(:exec, row2, [sql_2])
+    mock_medusa_db.expect(:exec, row3, [sql_3])
+    path_act = BatchRestoreFiles.get_path(mock_medusa_db, 6, path)
+    assert_equal(path_exp, path_act)
+    assert_mock(mock_medusa_db)
   end
 
   def test_get_path_hash
-    skip
+    file_directories = [6, 3]
+    dir_exp = {6 => "4/5/6/", 3 => "1/2/3/"}
+    row1 = [{"path" => "6", "parent_id" => 5, "parent_type" => "CfsDirectory"}]
+    row2 = [{"path" => "5", "parent_id" => 4, "parent_type" => "CfsDirectory"}]
+    row3 = [{"path" => "4", "parent_id" => 3, "parent_type" => "FileGroup"}]
+    sql_1 = "SELECT * FROM cfs_directories WHERE id=#{6}"
+    sql_2 = "SELECT * FROM cfs_directories WHERE id=#{5}"
+    sql_3 = "SELECT * FROM cfs_directories WHERE id=#{4}"
+    row4 = [{"path" => "3", "parent_id" => 2, "parent_type" => "CfsDirectory"}]
+    row5 = [{"path" => "2", "parent_id" => 1, "parent_type" => "CfsDirectory"}]
+    row6 = [{"path" => "1", "parent_id" => nil, "parent_type" => nil}]
+    sql_4 = "SELECT * FROM cfs_directories WHERE id=#{3}"
+    sql_5 = "SELECT * FROM cfs_directories WHERE id=#{2}"
+    sql_6 = "SELECT * FROM cfs_directories WHERE id=#{1}"
+    mock_medusa_db = Minitest::Mock.new
+    mock_medusa_db.expect(:exec, row1, [sql_1])
+    mock_medusa_db.expect(:exec, row2, [sql_2])
+    mock_medusa_db.expect(:exec, row3, [sql_3])
+    mock_medusa_db.expect(:exec, row4, [sql_4])
+    mock_medusa_db.expect(:exec, row5, [sql_5])
+    mock_medusa_db.expect(:exec, row6, [sql_6])
+    dir_act = BatchRestoreFiles.get_path_hash(mock_medusa_db, file_directories)
+    assert_equal(dir_exp, dir_act)
+    assert_mock(mock_medusa_db)
   end
 
   def test_generate_manifest
-    skip
+    manifest = "test-manifest.csv"
+    dir_path_1 = "1/2/3/"
+    dir_path_2 = "4/5/6/"
+    directories = {"1" => dir_path_1, "2" => dir_path_2}
+    id_1 = "123"
+    dir_1 = 1
+    name_1 = "test"
+    size_1 = 1234
+    checksum_1 = "12345678901234567890123456789012"
+    key_1 = dir_path_1 + name_1
+    id_2 = "345"
+    dir_2 = 2
+    name_2 = "test1"
+    size_2 = 2345
+    checksum_2 = "23456789012345678901234567890123"
+    key_2 = dir_path_2 + name_2
+    id_3 = "456"
+    dir_3 = 1
+    name_3 = "test3"
+    size_3 = 3456
+    key_3 = dir_path_1 + name_3
+    checksum_3 = "34567890123456789012345678901234"
+    medusa_item_1 = MedusaFile.new(name_1, id_1, dir_1, checksum_1)
+    medusa_item_2 = MedusaFile.new(name_2, id_2, dir_2, checksum_2)
+    medusa_item_3 = MedusaFile.new(name_3, id_3, dir_3, checksum_3)
+    medusa_files = [medusa_item_1, medusa_item_2, medusa_item_3]
+    batch_hash_1 = {
+      Settings.aws.dynamodb.s3_key => key_1,
+      Settings.aws.dynamodb.file_id => id_1,
+      Settings.aws.dynamodb.initial_checksum => checksum_1,
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
+    }
+    batch_hash_2 = {
+      Settings.aws.dynamodb.s3_key => key_2,
+      Settings.aws.dynamodb.file_id => id_2,
+      Settings.aws.dynamodb.initial_checksum => checksum_2,
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
+    }
+    batch_hash_3 = {
+      Settings.aws.dynamodb.s3_key => key_3,
+      Settings.aws.dynamodb.file_id => id_3,
+      Settings.aws.dynamodb.initial_checksum => checksum_3,
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
+    }
+    batch_exp = [batch_hash_1, batch_hash_2, batch_hash_3]
+    keys = [key_1, key_2, key_3]
+    Time.stub(:now, Time.new(1)) do
+      batch_act = BatchRestoreFiles.generate_manifest(manifest, medusa_files, directories)
+      manifest_table = CSV.new(File.read(manifest))
+      manifest_table.each do |row|
+        bucket, key = row
+        assert_equal(bucket, Settings.aws.s3.backup_bucket)
+        assert_equal(true, keys.include?(key))
+      end
+      assert_equal(batch_exp, batch_act)
+    end
   end
 
   def test_put_medusa_id
@@ -189,7 +304,41 @@ class TestBatchRestoreFiles < Minitest::Test
   end
 
   def test_get_batch_from_list
-    skip
+    id_1 = "123"
+    dir_1 = 1
+    name_1 = "test"
+    size_1 = 1234
+    checksum_1 = "12345678901234567890123456789012"
+    id_2 = "345"
+    dir_2 = 2
+    name_2 = "test1"
+    size_2 = 2345
+    checksum_2 = "23456789012345678901234567890123"
+    id_3 = "456"
+    dir_3 = 1
+    name_3 = "test3"
+    size_3 = 3456
+    checksum_3 = "34567890123456789012345678901234"
+    list = [id_1, id_2, id_3]
+    mock_medusa_db = Minitest::Mock.new
+    ret_val_1 = [{"id" => id_1, "cfs_directory_id" => dir_1, "name" => name_1, "size" => size_1, "md5_sum" => checksum_1}]
+    sql_1 = "SELECT * FROM cfs_files WHERE id=#{id_1.to_s}"
+    mock_medusa_db.expect(:exec, ret_val_1, [sql_1])
+    ret_val_2 = [{"id" => id_2, "cfs_directory_id" => dir_2, "name" => name_2, "size" => size_2, "md5_sum" => checksum_2}]
+    sql_2 = "SELECT * FROM cfs_files WHERE id=#{id_2.to_s}"
+    mock_medusa_db.expect(:exec, ret_val_2, [sql_2])
+    ret_val_3 = [{"id" => id_3, "cfs_directory_id" => dir_3, "name" => name_3, "size" => size_3, "md5_sum" => checksum_3}]
+    sql_3 = "SELECT * FROM cfs_files WHERE id=#{id_3.to_s}"
+    mock_medusa_db.expect(:exec, ret_val_3, [sql_3])
+    medusa_item_1 = MedusaFile.new(name_1, id_1, dir_1, checksum_1)
+    medusa_item_2 = MedusaFile.new(name_2, id_2, dir_2, checksum_2)
+    medusa_item_3 = MedusaFile.new(name_3, id_3, dir_3, checksum_3)
+    medusa_files_exp = [medusa_item_1, medusa_item_2, medusa_item_3]
+    file_dirs_exp = [1,2]
+    file_dirs_act , medusa_files_act = BatchRestoreFiles.get_batch_from_list(mock_medusa_db, list)
+    assert_mock(mock_medusa_db)
+    assert_equal(file_dirs_exp, file_dirs_act)
+    assert_equal(medusa_files_exp, medusa_files_act)
   end
 
   def test_restore_item

@@ -2,3 +2,4 @@
 /logs
 /storage/
 /lib/fixity/fixity_secrets.rb
+/test/test-manifest.csv
