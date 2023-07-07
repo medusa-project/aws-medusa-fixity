@@ -51,7 +51,7 @@ class S3Control
           },
         },
         priority: 10,
-        role_arn: Settings.aws.batch_arn, # required
+        role_arn: Settings.aws.s3.batch_arn, # required
       })
     rescue StandardError => e
       error_message = "Error creating job with manifest: #{manifest}: #{e.message}"
