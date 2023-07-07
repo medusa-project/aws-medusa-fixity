@@ -22,6 +22,10 @@ class ProcessBatchReports
 
     job_failures = get_tasks_failed(s3_control, job_id)
     return nil if job_failures.zero?
+    if job_failures.zero?
+      remove_job_id(dynamodb, job_id)
+      return nil
+    end
 
     manifest_key = get_manifest_key(s3, job_id)
     error_batch = parse_completion_report(dynamodb, s3, manifest_key)
