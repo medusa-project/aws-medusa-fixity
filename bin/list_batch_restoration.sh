@@ -1,5 +1,5 @@
 #!/bin/bash --login
-source ./set-vars.sh
+source /home/ec2-user/aws-medusa-fixity/bin/set-vars.sh/set-vars.sh
 
 #Run fixity on restored files in order of restoration completion
 
