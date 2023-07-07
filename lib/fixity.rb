@@ -55,7 +55,6 @@ class Fixity
   def self.run_fixity_batch
     dynamodb = Dynamodb.new
     s3 = S3.new
-    s3_control = S3Control.new
 
     #get fixity ready batch info from dynamodb
     fixity_batch = get_fixity_batch(dynamodb)
