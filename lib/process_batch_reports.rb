@@ -27,7 +27,8 @@ class ProcessBatchReports
     error_batch = parse_completion_report(dynamodb, s3, manifest_key)
     return nil if error_batch.empty?
 
-    dynamodb.put_batch_items_in_table(Settings.aws.dynamodb.restoration_errors_table_name, error_batch)
+    put_requests = dynamodb.get_put_requests(error_batch)
+    dynamodb.batch_write_items(Settings.aws.dynamodb.restoration_errors_table_name, put_requests)
 
     remove_job_id(dynamodb, job_id)
   end

@@ -20,7 +20,7 @@ class Dynamodb
       FixityConstants::LOGGER.error(error_message)
     end
   end
-  def self.get_put_requests(batch)
+  def get_put_requests(batch)
     put_requests = []
     array_itr = 0
     put_requests[array_itr] = []

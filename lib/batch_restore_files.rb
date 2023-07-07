@@ -46,8 +46,8 @@ class BatchRestoreFiles
       id = id_iterator
       directories = get_path_hash(medusa_db, file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
-
-      dynamodb.put_batch_items_in_table(Settings.aws.dynamodb.fixity_table_name, batch)
+      put_requests = dynamodb.get_put_requests(batch)
+      dynamodb.batch_write_items(Settings.aws.dynamodb.fixity_table_name, put_requests)
     end
 
     put_medusa_id(dynamodb, id)
@@ -70,7 +70,8 @@ class BatchRestoreFiles
     directories = get_path_hash(medusa_db, file_directories)
     batch = generate_manifest(manifest, medusa_files, directories)
 
-    #Dynamodb.put_batch_items_in_table(FixityConstants::FIXITY_TABLE_NAME, batch)
+    # put_requests = dynamodb.get_put_requests(batch)
+    # dynamodb.batch_write_items(Settings.aws.dynamodb.fixity_table_name, put_requests)
 
     etag = put_manifest(s3, manifest)
     send_batch_job(dynamodb, s3_control, manifest, etag)
