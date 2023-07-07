@@ -33,10 +33,10 @@ class S3Control
           }
         },
         report: {
-          bucket: Settings.aws.backup_bucket_arn,
+          bucket: Settings.aws.s3.backup_bucket_arn,
           format: "Report_CSV_20180820", # accepts Report_CSV_20180820
           enabled: true, # required
-          prefix: Settings.aws.batch_prefix,
+          prefix: Settings.aws.s3.batch_prefix,
           report_scope: "FailedTasksOnly", # accepts AllTasks, FailedTasksOnly
         },
         client_request_token: "#{token}", # required
@@ -46,7 +46,7 @@ class S3Control
                   fields: %w[Bucket Key], # accepts Ignore, Bucket, Key, VersionId
           },
           location: { # required
-                      object_arn: "#{Settings.aws.backup_bucket_arn}/fixity/#{manifest}", # required
+                      object_arn: "#{Settings.aws.s3.backup_bucket_arn}/fixity/#{manifest}", # required
                       etag: etag, # required
           },
         },
