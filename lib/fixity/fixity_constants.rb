@@ -12,7 +12,7 @@ class FixityConstants
   SQS_CLIENT_WEST = Aws::SQS::Client.new(region: Settings.aws.region_west)
   SQS_CLIENT_EAST = Aws::SQS::Client.new(region: Settings.aws.region_east)
   DYNAMODB_CLIENT = Aws::DynamoDB::Client.new(region: Settings.aws.region_west)
-  LOGGER = Logger.new("#{ENV['LOGGER_HOME']}", 'daily')
+  LOGGER = Logger.new("#{ENV['LOGGER_HOME']}/fixity.log", 'daily')
   S3_CONTROL_CLIENT = Aws::S3Control::Client.new(region: Settings.aws.region_west)
 
 end
