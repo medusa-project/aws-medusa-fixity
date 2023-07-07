@@ -47,7 +47,7 @@ class BatchRestoreFiles
       directories = get_path_hash(medusa_db, file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
 
-      Dynamodb.put_batch_items_in_table(Settings.aws.dynamodb.fixity_table_name, batch)
+      dynamodb.put_batch_items_in_table(Settings.aws.dynamodb.fixity_table_name, batch)
     end
 
     put_medusa_id(dynamodb, id)
