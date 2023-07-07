@@ -17,7 +17,6 @@ class Fixity
     #get object info from dynamodb
     dynamodb = Dynamodb.new
     s3 = S3.new
-    s3_control = S3Control.new
 
     fixity_item = get_fixity_item(dynamodb)
 
