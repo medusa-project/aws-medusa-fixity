@@ -21,7 +21,7 @@ class ProcessBatchReports
     job_id = get_job_id(dynamodb)
 
     job_failures = get_tasks_failed(s3_control, job_id)
-    return nil if job_failures.zero?
+
     if job_failures.zero?
       remove_job_id(dynamodb, job_id)
       return nil
