@@ -35,6 +35,7 @@ class Dynamodb
         put_requests[array_itr] = []
       end
     end
+    put_requests.delete([])
     return put_requests
   end
 
@@ -43,6 +44,7 @@ class Dynamodb
     return nil if write_requests.nil? || write_requests.empty?
     write_requests.each do |write_request|
       begin
+        next if write_request.empty?
         resp = @dynamodb_client.batch_write_item({
           request_items: { # required
             table_name => write_request
