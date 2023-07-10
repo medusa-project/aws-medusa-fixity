@@ -23,4 +23,9 @@ class MedusaFile
   def initial_checksum
     @initial_checksum
   end
+
+  def ==(obj)
+    # return true if self is equal to other_object, false otherwise
+    self.name == obj.name && self.file_id == obj.file_id && self.directory_id == obj.directory_id && self.initial_checksum == obj.initial_checksum
+  end
 end
