@@ -271,7 +271,6 @@ class TestBatchRestoreFiles < Minitest::Test
     key = "123/test.tst"
     checksum = "12345678901234567890123456789012"
     batch_item = BatchItem.new(key, id, checksum)
-    puts batch_item.s3_key
     test_item = {
       Settings.aws.dynamodb.s3_key => batch_item.s3_key,
       Settings.aws.dynamodb.file_id => batch_item.file_id,

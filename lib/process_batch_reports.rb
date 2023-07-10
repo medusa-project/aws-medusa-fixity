@@ -63,7 +63,7 @@ class ProcessBatchReports
   end
 
   def self.parse_completion_report(dynamodb, s3, manifest_key)
-    response_target = './report.csv'
+    response_target = "./report.csv"
     s3.get_object_to_response_target(Settings.aws.s3.backup_bucket, manifest_key, response_target)
     batch_completion_table = CSV.new(File.read("report.csv"))
     error_batch = []

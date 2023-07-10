@@ -22,7 +22,7 @@ class TestRestorationEvent < Minitest::Test
                       "#{Settings.aws.dynamodb.fixity_ready} = :fixity_ready, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, "\
                       "#{Settings.aws.dynamodb.file_size} = :file_size"
-    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr]
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     RestorationEvent.handle_completed(mock_dynamodb, test_key, file_size, timestamp)
     assert_mock(mock_dynamodb)
@@ -44,7 +44,7 @@ class TestRestorationEvent < Minitest::Test
                       "#{Settings.aws.dynamodb.file_size} = :file_size "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
     ret_val = "ALL_OLD"
-    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr, ret_val]
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr, ret_val]
     mock_dynamodb.expect(:update_item, nil, args_verification)
     Time.stub(:now, Time.new(2)) do
       RestorationEvent.handle_deleted(mock_dynamodb, mock_s3, test_key, file_size)
@@ -61,7 +61,7 @@ class TestRestorationEvent < Minitest::Test
     mock_dynamodb = Minitest::Mock.new
     mock_s3 = Minitest::Mock.new
     s3_args_validation = [Settings.aws.s3.backup_bucket, "123/test.tst"]
-    mock_s3.expect(:restore_item, [], s3_args_validation)
+    mock_s3.expect(:restore_object, [], s3_args_validation)
     item = {
       Settings.aws.dynamodb.s3_key => "123/test.tst",
       Settings.aws.dynamodb.file_id => 123,

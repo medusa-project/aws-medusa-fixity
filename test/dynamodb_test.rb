@@ -4,7 +4,7 @@ require 'minitest/autorun'
 require 'aws-sdk-dynamodb'
 require 'config'
 
-require_relative '../lib/fixity/dynamodb'
+require_relative '../lib/fixity/dynamodb.rb'
 class TestDynamodb < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
   def setup
@@ -24,21 +24,27 @@ class TestDynamodb < Minitest::Test
 
   def test_get_put_requests_returns_array_of_arrays
     test_batch = %w[1 2 3]
-    test_batch_items = Dynamodb.get_put_requests(test_batch)
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    test_batch_items = dynamodb.get_put_requests(test_batch)
     assert_instance_of(Array, test_batch_items)
     assert_instance_of(Array, test_batch_items[0])
   end
 
   def test_get_put_requests_returns_correct_format
     test_batch = %w[1 2 3]
-    test_batch_items = Dynamodb.get_put_requests(test_batch)
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    test_batch_items = dynamodb.get_put_requests(test_batch)
     expected = [[{put_request: {item:"1"}},{put_request: {item:"2"}},{put_request: {item:"3"}}]]
     assert_equal(expected, test_batch_items)
   end
 
   def test_get_put_requests_returns_arrays_with_less_than_26_elements
     test_batch = %w[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26]
-    test_batch_items = Dynamodb.get_put_requests(test_batch)
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    test_batch_items = dynamodb.get_put_requests(test_batch)
     test_batch_items.each do |test_batch_item|
       assert_operator test_batch_item.size, :<=, 25
     end
@@ -46,7 +52,9 @@ class TestDynamodb < Minitest::Test
 
   def test_get_put_requests_returns_multiple_arrays_when_more_than_26_elements
     test_batch = %w[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26]
-    test_batch_items = Dynamodb.get_put_requests(test_batch)
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    test_batch_items = dynamodb.get_put_requests(test_batch)
     assert_equal(2, test_batch_items.size)
   end
 
@@ -89,7 +97,6 @@ class TestDynamodb < Minitest::Test
     dynamodb = Dynamodb.new(mock_dynamodb_client)
     args_verification = {table_name: "TestTable",
                          key: {Settings.aws.dynamodb.s3_key => "123/test.tst"},
-                         expression_attribute_names: {"#TV" => "testVal"},
                          expression_attribute_values: {":test_value" => "testValue"},
                          update_expression: "SET #TV = :restoration_status",
                          return_values: "ALL_OLD" }
@@ -97,7 +104,6 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client.expect(:update_item, [], [args_verification])
     dynamodb.update_item("TestTable",
                     {Settings.aws.dynamodb.s3_key => "123/test.tst"},
-           {"#TV" => "testVal"},
           {":test_value" => "testValue"},
               "SET #TV = :restoration_status",
                   "ALL_OLD")
@@ -109,7 +115,6 @@ class TestDynamodb < Minitest::Test
     dynamodb = Dynamodb.new(mock_dynamodb_client)
     args_verification = {table_name: "TestTable",
                          key: {Settings.aws.dynamodb.s3_key => "123/test.tst"},
-                         expression_attribute_names: {"#TV" => "testVal"},
                          expression_attribute_values: {":test_value" => "testValue"},
                          update_expression: "SET #TV = :restoration_status",
                          return_values: "NONE" }
@@ -117,9 +122,28 @@ class TestDynamodb < Minitest::Test
     mock_dynamodb_client.expect(:update_item, [], [args_verification])
     dynamodb.update_item("TestTable",
                          {Settings.aws.dynamodb.s3_key => "123/test.tst"},
-                         {"#TV" => "testVal"},
                          {":test_value" => "testValue"},
                          "SET #TV = :restoration_status")
+    assert_mock(mock_dynamodb_client)
+  end
+
+  def test_update_item_with_names_format
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    args_verification = {table_name: "TestTable",
+                         key: {Settings.aws.dynamodb.s3_key => "123/test.tst"},
+                         expression_attribute_names: {"#TV" => "testVal"},
+                         expression_attribute_values: {":test_value" => "testValue"},
+                         update_expression: "SET #TV = :restoration_status",
+                         return_values: "ALL_OLD" }
+
+    mock_dynamodb_client.expect(:update_item, [], [args_verification])
+    dynamodb.update_item_with_names("TestTable",
+                         {Settings.aws.dynamodb.s3_key => "123/test.tst"},
+                         {"#TV" => "testVal"},
+                         {":test_value" => "testValue"},
+                         "SET #TV = :restoration_status",
+                         "ALL_OLD")
     assert_mock(mock_dynamodb_client)
   end
 

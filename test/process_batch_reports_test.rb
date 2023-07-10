@@ -83,7 +83,7 @@ class TestProcessBatchReports < Minitest::Test
   def test_parse_completion_report
     mock_dynamodb = Minitest::Mock.new
     mock_s3 = Minitest::Mock.new
-    response_target = './report.csv'
+    response_target = "./report.csv"
     manifest_key = "test/test-manifest.csv"
     table_name = Settings.aws.dynamodb.fixity_table_name
     limit = 1
@@ -132,8 +132,10 @@ class TestProcessBatchReports < Minitest::Test
     }
     exp_error_batch = [error_hash1, error_hash2, error_hash3]
     Time.stub(:now, Time.new(1)) do
-      error_batch = ProcessBatchReports.parse_completion_report(mock_dynamodb, mock_s3, manifest_key)
-      assert_equal(exp_error_batch, error_batch)
+      File.stub(:read, File.read("#{ENV['TEST_HOME']}/report.csv")) do
+        error_batch = ProcessBatchReports.parse_completion_report(mock_dynamodb, mock_s3, manifest_key)
+        assert_equal(exp_error_batch, error_batch)
+      end
     end
     assert_mock(mock_s3)
   end

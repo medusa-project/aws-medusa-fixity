@@ -149,7 +149,7 @@ class TestFixity < Minitest::Test
     update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
-    args_verification = [table_name, key, {}, expr_attr_vals, update_expr]
+    args_verification = [table_name, key, expr_attr_vals, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Fixity.update_fixity_ready(mock_dynamodb, test_key)
     assert_mock(mock_dynamodb)
@@ -160,7 +160,7 @@ class TestFixity < Minitest::Test
     mock_s3_client = Minitest::Mock.new
     s3 = S3.new(mock_s3_client)
     object_part = Object.new
-    def object_part.body = IO.new(IO.sysopen("./.ruby-version", "r"), "r")
+    def object_part.body = IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", "r"), "r")
     mock_dynamodb = Minitest::Mock.new
     test_key = "123/test.tst"
     file_size = 12345
@@ -212,7 +212,7 @@ class TestFixity < Minitest::Test
                       "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
                       "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp"
-    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr]
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_match(mock_dynamodb, test_key, test_checksum)
@@ -237,7 +237,7 @@ class TestFixity < Minitest::Test
                       "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
                       "#{Settings.aws.dynamodb.mismatch} = :mismatch"
-    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, {}, expr_attr_values, update_expr]
+    args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr]
     mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_mismatch(mock_dynamodb, test_key, test_checksum)
@@ -258,7 +258,7 @@ class TestFixity < Minitest::Test
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
                       "#E = :error"
     args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr]
-    mock_dynamodb.expect(:update_item, [], args_verification)
+    mock_dynamodb.expect(:update_item_with_names, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       Fixity.update_fixity_error(mock_dynamodb, test_key)
       assert_mock(mock_dynamodb)

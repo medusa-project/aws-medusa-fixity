@@ -1,5 +1,5 @@
 #!/bin/bash --login
-source /home/ec2-user/aws-medusa-fixity/bin/set-vars.sh/set-vars.sh
+source /home/ec2-user/aws-medusa-fixity/bin/set-vars.sh
 
 #Process batch reports from batch s3 jobs
 
