@@ -95,9 +95,9 @@ class TestBatchRestoreFiles < Minitest::Test
   def test_get_file
     mock_medusa_db = Minitest::Mock.new
     id = 123
-    sql = "SELECT * FROM cfs_files WHERE id=#{id.to_s}"
+    sql = "SELECT * FROM cfs_files WHERE id=$1"
     file_exp = {"id" => "123", "name" => "test", "size" => 123456, "md5_sum" => "12345678901234567890123456789012", "cfs_directory_id" => 1}
-    mock_medusa_db.expect(:exec, [file_exp], [sql])
+    mock_medusa_db.expect(:exec_params, [file_exp], [sql, [{:value =>id.to_s}]])
     file_act = BatchRestoreFiles.get_file(mock_medusa_db, id)
     assert_mock(mock_medusa_db)
     assert_equal(file_exp, file_act)
@@ -107,12 +107,12 @@ class TestBatchRestoreFiles < Minitest::Test
     mock_medusa_db = Minitest::Mock.new
     id = 0
     id_iterator = 3
-    sql = "SELECT * FROM cfs_files WHERE id>#{id.to_s} AND  id<=#{id_iterator}"
+    sql = "SELECT * FROM cfs_files WHERE id>$1 AND  id<=$2"
     files_ret = [{"id" => "1", "name" => "test", "size" => 123456, "md5_sum" => "12345678901234567890123456789012", "cfs_directory_id" => 1},
                  {"id" => "2", "name" => "test1", "size" => 234567, "md5_sum" => "23456789012345678901234567890123", "cfs_directory_id" => 1},
                  {"id" => "3", "name" => "test2", "size" => 345678, "md5_sum" => "34567890123456789012345678901234", "cfs_directory_id" => 2}
     ]
-    mock_medusa_db.expect(:exec, files_ret, [sql])
+    mock_medusa_db.expect(:exec_params, files_ret, [sql, [{:value =>id.to_s}, {:value =>id_iterator.to_s}]])
     file_dirs_act, medusa_files_act = BatchRestoreFiles.get_files_in_batches(mock_medusa_db, id, id_iterator)
 
     m_file_1 = MedusaFile.new("test", "1", 1, "12345678901234567890123456789012")
@@ -131,15 +131,13 @@ class TestBatchRestoreFiles < Minitest::Test
     row1 = [{"path" => "3", "parent_id" => 2, "parent_type" => "CfsDirectory"}]
     row2 = [{"path" => "2", "parent_id" => 1, "parent_type" => "CfsDirectory"}]
     row3 = [{"path" => "1", "parent_id" => nil, "parent_type" => nil}]
-    sql_1 = "SELECT * FROM cfs_directories WHERE id=#{3}"
-    sql_2 = "SELECT * FROM cfs_directories WHERE id=#{2}"
-    sql_3 = "SELECT * FROM cfs_directories WHERE id=#{1}"
+    sql = "SELECT * FROM cfs_directories WHERE id=$1"
     path = "test.tst"
     path_exp = "1/2/3/"+path
     mock_medusa_db = Minitest::Mock.new
-    mock_medusa_db.expect(:exec, row1, [sql_1])
-    mock_medusa_db.expect(:exec, row2, [sql_2])
-    mock_medusa_db.expect(:exec, row3, [sql_3])
+    mock_medusa_db.expect(:exec_params, row1, [sql, [{:value =>3}]])
+    mock_medusa_db.expect(:exec_params, row2, [sql, [{:value =>2}]])
+    mock_medusa_db.expect(:exec_params, row3, [sql, [{:value =>1}]])
     path_act = BatchRestoreFiles.get_path(mock_medusa_db, 3, path)
     assert_equal(path_exp, path_act)
     assert_mock(mock_medusa_db)
@@ -149,15 +147,13 @@ class TestBatchRestoreFiles < Minitest::Test
     row1 = [{"path" => "6", "parent_id" => 5, "parent_type" => "CfsDirectory"}]
     row2 = [{"path" => "5", "parent_id" => 4, "parent_type" => "CfsDirectory"}]
     row3 = [{"path" => "4", "parent_id" => 3, "parent_type" => "FileGroup"}]
-    sql_1 = "SELECT * FROM cfs_directories WHERE id=#{6}"
-    sql_2 = "SELECT * FROM cfs_directories WHERE id=#{5}"
-    sql_3 = "SELECT * FROM cfs_directories WHERE id=#{4}"
+    sql = "SELECT * FROM cfs_directories WHERE id=$1"
     path = "test.tst"
     path_exp = "4/5/6/"+path
     mock_medusa_db = Minitest::Mock.new
-    mock_medusa_db.expect(:exec, row1, [sql_1])
-    mock_medusa_db.expect(:exec, row2, [sql_2])
-    mock_medusa_db.expect(:exec, row3, [sql_3])
+    mock_medusa_db.expect(:exec_params, row1, [sql, [{:value =>6}]])
+    mock_medusa_db.expect(:exec_params, row2, [sql, [{:value =>5}]])
+    mock_medusa_db.expect(:exec_params, row3, [sql, [{:value =>4}]])
     path_act = BatchRestoreFiles.get_path(mock_medusa_db, 6, path)
     assert_equal(path_exp, path_act)
     assert_mock(mock_medusa_db)
@@ -166,25 +162,20 @@ class TestBatchRestoreFiles < Minitest::Test
   def test_get_path_hash
     file_directories = [6, 3]
     dir_exp = {6 => "4/5/6/", 3 => "1/2/3/"}
+    sql = "SELECT * FROM cfs_directories WHERE id=$1"
     row1 = [{"path" => "6", "parent_id" => 5, "parent_type" => "CfsDirectory"}]
     row2 = [{"path" => "5", "parent_id" => 4, "parent_type" => "CfsDirectory"}]
     row3 = [{"path" => "4", "parent_id" => 3, "parent_type" => "FileGroup"}]
-    sql_1 = "SELECT * FROM cfs_directories WHERE id=#{6}"
-    sql_2 = "SELECT * FROM cfs_directories WHERE id=#{5}"
-    sql_3 = "SELECT * FROM cfs_directories WHERE id=#{4}"
     row4 = [{"path" => "3", "parent_id" => 2, "parent_type" => "CfsDirectory"}]
     row5 = [{"path" => "2", "parent_id" => 1, "parent_type" => "CfsDirectory"}]
     row6 = [{"path" => "1", "parent_id" => nil, "parent_type" => nil}]
-    sql_4 = "SELECT * FROM cfs_directories WHERE id=#{3}"
-    sql_5 = "SELECT * FROM cfs_directories WHERE id=#{2}"
-    sql_6 = "SELECT * FROM cfs_directories WHERE id=#{1}"
     mock_medusa_db = Minitest::Mock.new
-    mock_medusa_db.expect(:exec, row1, [sql_1])
-    mock_medusa_db.expect(:exec, row2, [sql_2])
-    mock_medusa_db.expect(:exec, row3, [sql_3])
-    mock_medusa_db.expect(:exec, row4, [sql_4])
-    mock_medusa_db.expect(:exec, row5, [sql_5])
-    mock_medusa_db.expect(:exec, row6, [sql_6])
+    mock_medusa_db.expect(:exec_params, row1, [sql, [{:value =>6}]])
+    mock_medusa_db.expect(:exec_params, row2, [sql, [{:value =>5}]])
+    mock_medusa_db.expect(:exec_params, row3, [sql, [{:value =>4}]])
+    mock_medusa_db.expect(:exec_params, row4, [sql, [{:value =>3}]])
+    mock_medusa_db.expect(:exec_params, row5, [sql, [{:value =>2}]])
+    mock_medusa_db.expect(:exec_params, row6, [sql, [{:value =>1}]])
     dir_act = BatchRestoreFiles.get_path_hash(mock_medusa_db, file_directories)
     assert_equal(dir_exp, dir_act)
     assert_mock(mock_medusa_db)
@@ -321,14 +312,12 @@ class TestBatchRestoreFiles < Minitest::Test
     list = [id_1, id_2, id_3]
     mock_medusa_db = Minitest::Mock.new
     ret_val_1 = [{"id" => id_1, "cfs_directory_id" => dir_1, "name" => name_1, "size" => size_1, "md5_sum" => checksum_1}]
-    sql_1 = "SELECT * FROM cfs_files WHERE id=#{id_1.to_s}"
-    mock_medusa_db.expect(:exec, ret_val_1, [sql_1])
+    sql = "SELECT * FROM cfs_files WHERE id=$1"
+    mock_medusa_db.expect(:exec_params, ret_val_1, [sql, [{:value =>id_1.to_s}]])
     ret_val_2 = [{"id" => id_2, "cfs_directory_id" => dir_2, "name" => name_2, "size" => size_2, "md5_sum" => checksum_2}]
-    sql_2 = "SELECT * FROM cfs_files WHERE id=#{id_2.to_s}"
-    mock_medusa_db.expect(:exec, ret_val_2, [sql_2])
+    mock_medusa_db.expect(:exec_params, ret_val_2, [sql, [{:value =>id_2.to_s}]])
     ret_val_3 = [{"id" => id_3, "cfs_directory_id" => dir_3, "name" => name_3, "size" => size_3, "md5_sum" => checksum_3}]
-    sql_3 = "SELECT * FROM cfs_files WHERE id=#{id_3.to_s}"
-    mock_medusa_db.expect(:exec, ret_val_3, [sql_3])
+    mock_medusa_db.expect(:exec_params, ret_val_3, [sql, [{:value =>id_3.to_s}]])
     medusa_item_1 = MedusaFile.new(name_1, id_1, dir_1, checksum_1)
     medusa_item_2 = MedusaFile.new(name_2, id_2, dir_2, checksum_2)
     medusa_item_3 = MedusaFile.new(name_3, id_3, dir_3, checksum_3)
