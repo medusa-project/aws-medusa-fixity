@@ -20,6 +20,20 @@ class BatchRestoreFiles
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
 
+  def self.test_pg
+    medusa_db = FixitySecrets::MEDUSA_DB
+    max_id = get_max_id(medusa_db)
+    puts "Max id: #{max_id}"
+    file = get_file(medusa_db, 100)
+    puts "File 100: #{file}"
+    directories, medusa_files = get_files_in_batches(medusa_db, 65, 75)
+    directories.each do |dir|
+      puts "Directory: #{dir}"
+    end
+    medusa_files.each do |m_file|
+      puts "file: #{m_file}"
+    end
+  end
   def self.get_batch_restore
     dynamodb = Dynamodb.new
     s3 = S3.new
@@ -113,7 +127,7 @@ class BatchRestoreFiles
 
   def self.get_file(medusa_db, id)
     #TODO optimize to get multiple files per call to medusa DB
-    file_result = medusa_db.exec( "SELECT * FROM cfs_files WHERE id=#{id.to_s}" )
+    file_result = medusa_db.exec_params("SELECT * FROM cfs_files WHERE id=$1", [{:value =>id.to_s}])
     file_result.first
   end
 
@@ -123,7 +137,8 @@ class BatchRestoreFiles
     # put medusa id in dynamodb at the end
     medusa_files = []
     file_directories = []
-    file_result = medusa_db.exec( "SELECT * FROM cfs_files WHERE id>#{id.to_s} AND  id<=#{id_iterator}")
+    file_result = medusa_db.exec_params("SELECT * FROM cfs_files WHERE id>$1 AND  id<=$2", [{:value =>id.to_s},
+                                                                                            {:value => id_iterator.to_s}])
     file_result.each do |file_row|
       next if file_row.nil?
       file_id = file_row["id"]
@@ -139,7 +154,7 @@ class BatchRestoreFiles
 
   def self.get_path(medusa_db, directory_id, path)
     while directory_id
-      dir_result = medusa_db.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
+      dir_result = medusa_db.exec_params("SELECT * FROM cfs_directories WHERE id=$1", [{:value =>directory_id}])
       dir_row = dir_result.first
       dir_path = dir_row["path"]
       path.prepend(dir_path,'/')
