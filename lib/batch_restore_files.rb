@@ -20,20 +20,6 @@ class BatchRestoreFiles
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
 
-  def self.test_pg
-    medusa_db = FixitySecrets::MEDUSA_DB
-    max_id = get_max_id(medusa_db)
-    puts "Max id: #{max_id}"
-    file = get_file(medusa_db, 100)
-    puts "File 100: #{file}"
-    directories, medusa_files = get_files_in_batches(medusa_db, 65, 75)
-    directories.each do |dir|
-      puts "Directory: #{dir}"
-    end
-    medusa_files.each do |m_file|
-      puts "file: #{m_file}"
-    end
-  end
   def self.get_batch_restore
     dynamodb = Dynamodb.new
     s3 = S3.new
@@ -171,7 +157,7 @@ class BatchRestoreFiles
       path = String.new
       file_directory = directory_id
       while directory_id
-        dir_result = medusa_db.exec( "SELECT * FROM cfs_directories WHERE id=#{directory_id}" )
+        dir_result = medusa_db.exec_params("SELECT * FROM cfs_directories WHERE id=$1", [{:value =>directory_id}])
         dir_row = dir_result.first
         dir_path = dir_row["path"]
         path.prepend(dir_path,"/")
