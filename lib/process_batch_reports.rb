@@ -14,7 +14,6 @@ require_relative 'fixity/fixity_constants'
 class ProcessBatchReports
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   def self.process_failures
-    #TODO move job ids to separate dynamodb table
     dynamodb = Dynamodb.new
     s3 = S3.new
     s3_control = S3Control.new
@@ -44,7 +43,7 @@ class ProcessBatchReports
     return scan_resp.items[0][Settings.aws.dynamodb.job_id]
   end
 
-  #TODO refactor to separate duration from failures, add in check to see if job is complete
+  #TODO add in check to see if job is complete
   def self.get_tasks_failed(s3_control, job_id)
     describe_resp = s3_control.describe_job(job_id)
     return nil if describe_resp.nil?

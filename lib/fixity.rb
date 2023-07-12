@@ -110,7 +110,6 @@ class Fixity
   end
 
   def self.get_fixity_batch(dynamodb)
-    #TODO expand to query multiple fixity items at a time
     table_name = Settings.aws.dynamodb.fixity_table_name
     index_name = Settings.aws.dynamodb.index_name
     limit = 25
