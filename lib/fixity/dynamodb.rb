@@ -53,7 +53,7 @@ class Dynamodb
       rescue StandardError => e
         error_message = "Error putting batch items in dynamodb table: #{e.message}"
         FixityConstants::LOGGER.error(error_message)
-        error_info_message = "Write requests not put in dynamodb table: #{write_requests}"
+        error_info_message = "Write requests not put in dynamodb table: #{write_request}"
         FixityConstants::LOGGER.info(error_info_message)
       end
     end

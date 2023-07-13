@@ -37,6 +37,7 @@ aws:
         false: "false"
     s3:
         bulk: "Bulk"
+        complete: "Complete"
     sqs:
         action: "action"
         file_fixity: "file_fixity"

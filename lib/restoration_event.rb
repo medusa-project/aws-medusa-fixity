@@ -15,7 +15,6 @@ class RestorationEvent
   def self.handle_message
     dynamodb = Dynamodb.new
     s3 = S3.new
-    #TODO query for file id? Unsure if necessary or helpful
     response = SQS_CLIENT.receive_message(queue_url: Settings.aws.sqs.s3_queue_url,
                                                                 max_number_of_messages: 10,
                                                                 visibility_timeout: 300)
@@ -84,7 +83,6 @@ class RestorationEvent
   def self.handle_expiration(dynamodb, s3, update_item_resp)
     return nil if update_item_resp.nil?
     fixity_status = update_item_resp.attributes[Settings.aws.dynamodb.fixity_status]
-    #TODO check this logic
     return false unless (fixity_status != Settings.aws.dynamodb.done && fixity_status != Settings.aws.dynamodb.error)
     s3_key = update_item_resp.attributes[Settings.aws.dynamodb.s3_key]
     file_id = update_item_resp.attributes[Settings.aws.dynamodb.file_id].to_i

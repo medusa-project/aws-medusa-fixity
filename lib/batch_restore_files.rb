@@ -33,7 +33,7 @@ class BatchRestoreFiles
     max_id = get_max_id(medusa_db)
     return nil if max_id.nil?
 
-    evaluate_done(id, max_id) #TODO return if true?
+    return if evaluate_done(id, max_id)
 
     batch_size = 0
     batch_count = 0
@@ -113,7 +113,6 @@ class BatchRestoreFiles
   end
 
   def self.get_file(medusa_db, id)
-    #TODO optimize to get multiple files per call to medusa DB
     file_result = medusa_db.exec_params("SELECT * FROM cfs_files WHERE id=$1", [{:value =>id.to_s}])
     file_result.first
   end
@@ -121,7 +120,6 @@ class BatchRestoreFiles
   def self.get_files_in_batches(medusa_db, id, id_iterator)
     #TODO add batch size as class variable to keep track of file sizes
     # expand to take batch size into account
-    # put medusa id in dynamodb at the end
     medusa_files = []
     file_directories = []
     file_result = medusa_db.exec_params("SELECT * FROM cfs_files WHERE id>$1 AND  id<=$2", [{:value =>id.to_s},
