@@ -92,6 +92,21 @@ class TestDynamodb < Minitest::Test
     assert_mock(mock_dynamodb_client)
   end
 
+  def test_batch_write_items_unprocessed_items
+    mock_dynamodb_client = Minitest::Mock.new
+    dynamodb = Dynamodb.new(mock_dynamodb_client)
+    mock_resp = Minitest::Mock.new
+    args_verification_1 = {request_items: {"TestTable" => %w[1 2 3 4 5 6] }}
+    mock_dynamodb_client.expect(:batch_write_item, mock_resp, [args_verification_1])
+    unprocessed_items = {request_items: {"TestTable" => %w[4 5 6] }}
+    mock_resp.expect(:unprocessed_items, unprocessed_items)
+    mock_resp.expect(:unprocessed_items, unprocessed_items)
+    mock_dynamodb_client.expect(:batch_write_item, mock_resp, [unprocessed_items])
+    mock_resp.expect(:unprocessed_items, {})
+    dynamodb.batch_write_items("TestTable", [%w[1 2 3 4 5 6]])
+    assert_mock(mock_dynamodb_client)
+  end
+
   def test_update_item_format
     mock_dynamodb_client = Minitest::Mock.new
     dynamodb = Dynamodb.new(mock_dynamodb_client)

@@ -50,6 +50,18 @@ class Dynamodb
             table_name => write_request
           }
         })
+        retries = 0
+        max_retries = 5
+        until resp.unprocessed_items.empty?
+          if retries <= max_retries
+            retries += 1
+            sleep 2**retries
+            resp = dynamodb_client.batch_write_item(resp.unprocessed_items)
+          else
+            error_message = "Error handling unprocessed items: #{resp.unprocessed_items}"
+            FixityConstants::LOGGER.error(error_message)
+          end
+        end
       rescue StandardError => e
         error_message = "Error putting batch items in dynamodb table: #{e.message}"
         FixityConstants::LOGGER.error(error_message)
