@@ -18,8 +18,11 @@ class ProcessBatchReports
     s3 = S3.new
     s3_control = S3Control.new
     job_id = get_job_id(dynamodb)
-
-    job_failures = get_tasks_failed(s3_control, job_id)
+    job_info = get_job_info(s3_control, job_id)
+    return nil if job_info.nil?
+    return if get_job_status(job_info) != Settings.aws.s3.complete
+    get_duration(job_info)
+    job_failures = get_tasks_failed(job_info)
 
     if job_failures.zero?
       remove_job_id(dynamodb, job_id)
@@ -43,15 +46,25 @@ class ProcessBatchReports
     return scan_resp.items[0][Settings.aws.dynamodb.job_id]
   end
 
-  #TODO add in check to see if job is complete
-  def self.get_tasks_failed(s3_control, job_id)
+  def self.get_job_info(s3_control, job_id)
     describe_resp = s3_control.describe_job(job_id)
     return nil if describe_resp.nil?
-    job_status = describe_resp.job.status
-    job_duration = describe_resp.job.progress_summary.timers.elapsed_time_in_active_seconds
-    job_tasks = describe_resp.job.progress_summary.total_number_of_tasks
+    describe_resp
+  end
+
+  def self.get_duration(job_info)
+    job_duration = job_info.job.progress_summary.timers.elapsed_time_in_active_seconds
+    job_tasks = job_info.job.progress_summary.total_number_of_tasks
     FixityConstants::LOGGER.info("Batch restoration job duration to process #{job_tasks} files: #{job_duration}")
-    return describe_resp.job.progress_summary.number_of_tasks_failed
+  end
+
+  #TODO add in check to see if job is complete
+  def self.get_tasks_failed(job_info)
+    job_info.job.progress_summary.number_of_tasks_failed
+  end
+
+  def self.get_job_status(job_info)
+    job_info.job.status
   end
 
   def self.get_manifest_key(s3, job_id)

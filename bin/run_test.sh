@@ -3,7 +3,7 @@ source ./set-test-vars.sh
 
 cd $TEST_HOME || exit
 test_file="${1}"_test.rb
-outcome=$(ruby "$test_file" --verbose | tail -1)
+ruby "$test_file" --verbose
 echo "$test_file"
-echo "$outcome"
+#echo "$outcome"
 exit 0

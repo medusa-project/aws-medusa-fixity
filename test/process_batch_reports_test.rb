@@ -28,39 +28,69 @@ class TestProcessBatchReports < Minitest::Test
     assert_mock(mock_dynamodb)
   end
 
-  def test_get_tests_failed
+  def test_job_info
     mock_s3_control = Minitest::Mock.new
     mock_describe_job_response = Minitest::Mock.new
-    mock_describe_job = Minitest::Mock.new
-    mock_progress_summary = Minitest::Mock.new
-    mock_timers = Minitest::Mock.new
-    mock_describe_job_response.expect(:nil?, false)
-    mock_describe_job_response.expect(:job, mock_describe_job)
-    mock_describe_job_response.expect(:job, mock_describe_job)
-    mock_describe_job_response.expect(:job, mock_describe_job)
-    mock_describe_job_response.expect(:job, mock_describe_job)
-    mock_describe_job.expect(:status, "Completed")
-    mock_describe_job.expect(:progress_summary, mock_progress_summary)
-    mock_describe_job.expect(:progress_summary, mock_progress_summary)
-    mock_describe_job.expect(:progress_summary, mock_progress_summary)
-    mock_progress_summary.expect(:timers, mock_timers)
-    mock_timers.expect(:elapsed_time_in_active_seconds, 123)
-    mock_progress_summary.expect(:total_number_of_tasks, 12)
-    mock_progress_summary.expect(:number_of_tasks_failed, 1)
     job_id = "job-123456789"
     mock_s3_control.expect(:describe_job, mock_describe_job_response, [job_id])
-    errors = ProcessBatchReports.get_tasks_failed(mock_s3_control, job_id)
+    mock_describe_job_response.expect(:nil?, false)
+    ProcessBatchReports.get_job_info(mock_s3_control, job_id)
     assert_mock(mock_s3_control)
+  end
+
+  def test_job_info_returns_nil
+      mock_s3_control = Minitest::Mock.new
+      job_id = "job-123456789"
+      mock_s3_control.expect(:describe_job, nil, [job_id])
+      job_info = ProcessBatchReports.get_job_info(mock_s3_control, job_id)
+      assert_mock(mock_s3_control)
+      assert_nil(job_info)
+  end
+
+  def test_get_duration
+    mock_job_info = Minitest::Mock.new
+    mock_job = Minitest::Mock.new
+    mock_progress_summary = Minitest::Mock.new
+    mock_timers = Minitest::Mock.new
+    mock_job_info.expect(:job, mock_job)
+    mock_job.expect(:progress_summary, mock_progress_summary)
+    mock_progress_summary.expect(:timers, mock_timers)
+    mock_timers.expect(:elapsed_time_in_active_seconds, 123)
+    mock_job_info.expect(:job, mock_job)
+    mock_job.expect(:progress_summary, mock_progress_summary)
+    mock_progress_summary.expect(:total_number_of_tasks, 12)
+    ProcessBatchReports.get_duration(mock_job_info)
+    assert_mock(mock_job_info)
+    assert_mock(mock_job)
+    assert_mock(mock_progress_summary)
+    assert_mock(mock_timers)
+  end
+
+  def test_get_tasks_failed
+    mock_job_info = Minitest::Mock.new
+    mock_job = Minitest::Mock.new
+    mock_progress_summary = Minitest::Mock.new
+    mock_job_info.expect(:job, mock_job)
+    # mock_describe_job.expect(:status, "Completed")
+    mock_job.expect(:progress_summary, mock_progress_summary)
+    mock_progress_summary.expect(:number_of_tasks_failed, 1)
+    errors = ProcessBatchReports.get_tasks_failed(mock_job_info)
+    assert_mock(mock_job_info)
+    assert_mock(mock_job)
+    assert_mock(mock_progress_summary)
     assert_equal(1, errors)
   end
 
-  def test_get_tests_failed_returns_nil
-    mock_s3_control = Minitest::Mock.new
-    job_id = "job-123456789"
-    mock_s3_control.expect(:describe_job, nil, [job_id])
-    errors = ProcessBatchReports.get_tasks_failed(mock_s3_control, job_id)
-    assert_mock(mock_s3_control)
-    assert_nil(errors)
+  def test_get_job_status
+    status_exp = "Completed"
+    mock_job_info = Minitest::Mock.new
+    mock_job = Minitest::Mock.new
+    mock_job_info.expect(:job, mock_job)
+    mock_job.expect(:status, status_exp)
+    status_act = ProcessBatchReports.get_job_status(mock_job_info)
+    assert_mock(mock_job_info)
+    assert_mock(mock_job)
+    assert_equal(status_exp, status_act)
   end
 
   def test_get_manifest_key
