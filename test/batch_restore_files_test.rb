@@ -334,9 +334,9 @@ class TestBatchRestoreFiles < Minitest::Test
     key = "123/test.tst"
     checksum = "12345678901234567890123456789012"
     batch_item = BatchItem.new(key, id, checksum)
-
     mock_s3 = Minitest::Mock.new
-    mock_s3.expect(:restore_object, [], [Settings.aws.s3.backup_bucket, key] )
+    mock_dynamodb = Minitest::Mock.new
+    mock_s3.expect(:restore_object, [], [mock_dynamodb, Settings.aws.s3.backup_bucket, key, id] )
     test_item = {
       Settings.aws.dynamodb.s3_key => batch_item.s3_key,
       Settings.aws.dynamodb.file_id => batch_item.file_id,
@@ -344,7 +344,6 @@ class TestBatchRestoreFiles < Minitest::Test
       Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
-    mock_dynamodb = Minitest::Mock.new
     mock_dynamodb.expect(:put_item, [], [Settings.aws.dynamodb.fixity_table_name, test_item])
     Time.stub(:now, Time.new(1)) do
       BatchRestoreFiles.restore_item(mock_dynamodb, mock_s3, batch_item)

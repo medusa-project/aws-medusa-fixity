@@ -65,7 +65,7 @@ class S3
     return object_part
   end
 
-  def restore_object(bucket, key)
+  def restore_object(dynamodb, bucket, key, file_id)
     begin
       @s3_client.restore_object({
         bucket: bucket,
@@ -73,7 +73,7 @@ class S3
         restore_request: {
           days: 1,
           glacier_job_parameters: {
-            tier: Settings.aws.bulk
+            tier: Settings.aws.s3.bulk
           },
         },
       })
@@ -82,13 +82,19 @@ class S3
       error_message = "Object with key: #{key} not found in bucket: #{bucket}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
       #Sqs.send_message(file_id, nil, FixityConstants::FALSE, FixityConstants::FAILURE, error_message)
-
     rescue StandardError => e
       # Error requesting object restoration, add to dynamodb table for retry?
       # Send error message to medusa
       #TODO add to Dynamodb for retry
       error_message = "Error restoring object with key: #{key} from bucket #{bucket}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
+      item = {
+        Settings.aws.dynamodb.s3_key => key,
+        Settings.aws.dynamodb.file_id => file_id,
+        Settings.aws.dynamodb.message => e.inspect,
+        Settings.aws.dynamodb.last_updated => Time.now.getutc.iso8601(3)
+      }
+      dynamodb.put_item(Settings.aws.dynamodb.restoration_errors_table_name, item)
     end
   end
 end

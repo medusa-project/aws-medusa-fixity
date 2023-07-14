@@ -241,7 +241,7 @@ class BatchRestoreFiles
 
   def self.restore_item(dynamodb, s3, batch_item)
     key = CGI.unescape(batch_item.s3_key)
-    s3.restore_object(Settings.aws.s3.backup_bucket, key)
+    s3.restore_object(dynamodb, Settings.aws.s3.backup_bucket, key, batch_item.file_id)
     put_batch_item(dynamodb, batch_item)
   end
 

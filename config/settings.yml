@@ -35,6 +35,7 @@ aws:
         mismatch: "MISMATCH"
         true: "true"
         false: "false"
+        message: "message"
     s3:
         bulk: "Bulk"
         complete: "Complete"

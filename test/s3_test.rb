@@ -5,7 +5,7 @@ require 'config'
 require_relative '../lib/fixity/s3'
 
 class TestS3 < Minitest::Test
-
+  Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
   def test_put_object
     mock_s3_client = Minitest::Mock.new
     s3 = S3.new(mock_s3_client)
@@ -55,15 +55,46 @@ class TestS3 < Minitest::Test
 
   def test_restore_object
     mock_s3_client = Minitest::Mock.new
+    mock_dynamodb = Minitest::Mock.new
     s3 = S3.new(mock_s3_client)
     bucket = Settings.aws.s3.backup_bucket
     key = "123/test.tst"
-    job_params = {tier: Settings.aws.bulk}
+    file_id = "123"
+    job_params = {tier: Settings.aws.s3.bulk}
     restore_request = {days: 1, glacier_job_parameters: job_params}
     args_verification = [bucket: bucket, key: key, restore_request: restore_request]
     mock_s3_client.expect(:restore_object, [], args_verification)
-    s3.restore_object(bucket, key)
+    s3.restore_object(mock_dynamodb, bucket, key, file_id)
     assert_mock(mock_s3_client)
+  end
+
+  def test_restore_object_exception
+    mock_s3_client = Minitest::Mock.new
+    mock_dynamodb = Minitest::Mock.new
+    s3 = S3.new(mock_s3_client)
+    bucket = Settings.aws.s3.backup_bucket
+    key = "123/test.tst"
+    file_id = "123"
+    job_params = {tier: "IntentionallyWrongTier"}
+    restore_request = {days: 1, glacier_job_parameters: job_params}
+    args_verification = [bucket: bucket, key: key, restore_request: restore_request]
+    error_message = "#<MockExpectationError: mocked method :restore_object called with unexpected arguments"\
+                    " [{:bucket=>\"medusa-test-main-backup\", :key=>\"123/test.tst\", "\
+                    ":restore_request=>{:days=>1, :glacier_job_parameters=>{:tier=>\"Bulk\"}}}]>"
+    item = {
+      Settings.aws.dynamodb.s3_key => key,
+      Settings.aws.dynamodb.file_id => file_id,
+      Settings.aws.dynamodb.message => error_message,
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
+    }
+    mock_s3_client.expect(:restore_object, [], args_verification)
+    mock_dynamodb.expect(:put_item, [], [Settings.aws.dynamodb.restoration_errors_table_name, item])
+    Time.stub(:now, Time.new(1)) do
+      # s3_client.stub(:restore_object, raises_exception) do
+        s3.restore_object(mock_dynamodb, bucket, key, file_id)
+        assert_mock(mock_dynamodb)
+      # end
+    end
   end
 
 end

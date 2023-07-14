@@ -39,7 +39,7 @@ class Dynamodb
     return put_requests
   end
 
-  #TODO handle returned unprocessed_items
+  #TODO test handle returned unprocessed_items
   def batch_write_items(table_name, write_requests)
     return nil if write_requests.nil? || write_requests.empty?
     write_requests.each do |write_request|

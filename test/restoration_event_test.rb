@@ -60,7 +60,7 @@ class TestRestorationEvent < Minitest::Test
                                        Settings.aws.dynamodb.initial_checksum => "12345678901234567890123456789012"}
     mock_dynamodb = Minitest::Mock.new
     mock_s3 = Minitest::Mock.new
-    s3_args_validation = [Settings.aws.s3.backup_bucket, "123/test.tst"]
+    s3_args_validation = [mock_dynamodb, Settings.aws.s3.backup_bucket, "123/test.tst", 123]
     mock_s3.expect(:restore_object, [], s3_args_validation)
     item = {
       Settings.aws.dynamodb.s3_key => "123/test.tst",
