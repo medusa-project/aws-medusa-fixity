@@ -68,7 +68,7 @@ class ProcessBatchReports
   end
 
   def self.get_manifest_key(s3, job_id)
-    key = "#{Settings.aws.batch_prefix}/job-#{job_id}/manifest.json"
+    key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
     s3_json_resp = s3.get_object(Settings.aws.s3.backup_bucket, key)
     manifest_key = JSON.parse(s3_json_resp.body.read)["Results"][0]["Key"]
     return manifest_key
