@@ -6,8 +6,8 @@ require 'config'
 
 require_relative 'fixity/dynamodb'
 require_relative 'fixity/s3'
-require_relative 'fixity/fixity_constants.rb'
-require_relative 'send_message.rb'
+require_relative 'fixity/fixity_constants'
+require_relative 'medusa_sqs'
 
 class Fixity
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
@@ -17,6 +17,7 @@ class Fixity
     #get object info from dynamodb
     dynamodb = Dynamodb.new
     s3 = S3.new
+    # medusa_sqs = MedusaSqs.new
 
     fixity_item = get_fixity_item(dynamodb)
 
@@ -49,12 +50,13 @@ class Fixity
     end
 
     # send sqs to medusa with result
-    #Sqs.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
+    # medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
   end
 
   def self.run_fixity_batch
     dynamodb = Dynamodb.new
     s3 = S3.new
+    # medusa_sqs = MedusaSqs.new
 
     #get fixity ready batch info from dynamodb
     fixity_batch = get_fixity_batch(dynamodb)
@@ -94,7 +96,7 @@ class Fixity
       end
 
       # send sqs to medusa with result
-      #Sqs.send_message(file_id, calculated_checksum, FixityConstants::TRUE, FixityConstants::SUCCESS, nil )
+      # medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
     end
   end
 

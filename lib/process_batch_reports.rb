@@ -20,6 +20,7 @@ class ProcessBatchReports
     job_id = get_job_id(dynamodb)
     job_info = get_job_info(s3_control, job_id)
     return nil if job_info.nil?
+    #TODO test check to see if job is complete
     return if get_job_status(job_info) != Settings.aws.s3.complete
     get_duration(job_info)
     job_failures = get_tasks_failed(job_info)
@@ -58,7 +59,6 @@ class ProcessBatchReports
     FixityConstants::LOGGER.info("Batch restoration job duration to process #{job_tasks} files: #{job_duration}")
   end
 
-  #TODO add in check to see if job is complete
   def self.get_tasks_failed(job_info)
     job_info.job.progress_summary.number_of_tasks_failed
   end
@@ -79,6 +79,7 @@ class ProcessBatchReports
     s3.get_object_to_response_target(Settings.aws.s3.backup_bucket, manifest_key, response_target)
     batch_completion_table = CSV.new(File.read("report.csv"))
     error_batch = []
+    #TODO test key not in s3 bucket
     batch_completion_table.each do |row|
       bucket, key, version_id, task_status, error_code, https_status_code, result_message = row
       file_id = get_file_id(dynamodb, key)

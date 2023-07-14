@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 require 'aws-sdk-dynamodb'
 require 'aws-sdk-s3'
-require 'aws-sdk-sqs'
 require 'aws-sdk-s3control'
 require 'pg'
 require 'cgi'
@@ -14,7 +13,7 @@ require_relative 'fixity/s3_control'
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
 require_relative 'fixity/medusa_file'
-require_relative 'send_message'
+
 class BatchRestoreFiles
   MAX_BATCH_COUNT = 20000
   MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
@@ -71,8 +70,8 @@ class BatchRestoreFiles
     directories = get_path_hash(medusa_db, file_directories)
     batch = generate_manifest(manifest, medusa_files, directories)
 
-    # put_requests = dynamodb.get_put_requests(batch)
-    # dynamodb.batch_write_items(Settings.aws.dynamodb.fixity_table_name, put_requests)
+    put_requests = dynamodb.get_put_requests(batch)
+    dynamodb.batch_write_items(Settings.aws.dynamodb.fixity_table_name, put_requests)
 
     etag = put_manifest(s3, manifest)
     send_batch_job(dynamodb, s3_control, manifest, etag)
@@ -185,7 +184,6 @@ class BatchRestoreFiles
         Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
         Settings.aws.dynamodb.last_updated => Time.now.getutc.iso8601(3)
       }
-      # put_batch_item(batch_item)
       batch.push(batch_hash)
     end
     return batch
