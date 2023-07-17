@@ -18,6 +18,7 @@ class ProcessBatchReports
     s3 = S3.new
     s3_control = S3Control.new
     job_id = get_job_id(dynamodb)
+    return nil if job_id.nil?
     job_info = get_job_info(s3_control, job_id)
     return nil if job_info.nil?
 
