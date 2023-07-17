@@ -44,7 +44,7 @@ class ProcessBatchReports
   def self.get_job_id(dynamodb)
     table_name = Settings.aws.dynamodb.batch_job_ids_table_name
     scan_resp = dynamodb.scan(table_name, 1)
-    return nil if scan_resp.nil?
+    return nil if scan_resp.nil? || scan_resp.items.empty?
     return scan_resp.items[0][Settings.aws.dynamodb.job_id]
   end
 
@@ -106,7 +106,7 @@ class ProcessBatchReports
     expr_attr_vals = { ":s3_key" => s3_key,}
     key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :s3_key"
     query_resp= dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
-    return nil if query_resp.nil?
+    return nil if query_resp.nil? || query_resp.items.empty?
     query_resp.items[0][Settings.aws.dynamodb.file_id]
   end
 

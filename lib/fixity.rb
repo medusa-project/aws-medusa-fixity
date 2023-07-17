@@ -105,7 +105,7 @@ class Fixity
     expr_attr_vals = {":ready" => Settings.aws.dynamodb.true,}
     key_cond_expr = "#{Settings.aws.dynamodb.fixity_ready} = :ready"
     query_resp = dynamodb.query_with_index(table_name, index_name, limit, expr_attr_vals, key_cond_expr)
-    return nil if query_resp.nil? || query_resp.empty?
+    return nil if query_resp.nil? || query_resp.items.empty?
     return query_resp.items[0]
   end
 
@@ -116,7 +116,7 @@ class Fixity
     expr_attr_vals = {":ready" => Settings.aws.dynamodb.true,}
     key_cond_expr = "#{Settings.aws.dynamodb.fixity_ready} = :ready"
     query_resp = dynamodb.query_with_index(table_name, index_name, limit, expr_attr_vals, key_cond_expr)
-    return nil if query_resp.nil? ||  query_resp.empty? || query_resp.items.nil?
+    return nil if query_resp.nil? ||  query_resp.empty? || query_resp.items.empty?
     return query_resp.items
   end
 

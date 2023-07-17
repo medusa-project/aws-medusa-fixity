@@ -80,7 +80,7 @@ class BatchRestoreFiles
     expr_attr_vals = { ":file_type" => Settings.aws.dynamodb.current_id, }
     key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :file_type"
     query_resp = dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
-    return nil if query_resp.nil?
+    return nil if query_resp.nil? || query_resp.items.empty?
     query_resp.items[0][Settings.aws.dynamodb.file_id].to_i
   end
 
@@ -256,7 +256,7 @@ class BatchRestoreFiles
     expr_attr_values = { ":request_token" => Settings.aws.dynamodb.current_request_token,}
     key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :request_token"
     query_resp = dynamodb.query(table_name, limit, expr_attr_values, key_cond_expr)
-    return nil if query_resp.nil?
+    return nil if query_resp.nil? || query_resp.items.empty?
     query_resp.items[0][Settings.aws.dynamodb.file_id].to_i
   end
 
