@@ -130,7 +130,7 @@ class BatchRestoreFiles
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    return file_directories.uniq!, medusa_files
+    return file_directories.uniq, medusa_files
   end
 
   def self.get_path(medusa_db, directory_id, path)
@@ -231,7 +231,7 @@ class BatchRestoreFiles
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    return file_directories.uniq!, medusa_files
+    return file_directories.uniq, medusa_files
   end
 
   def self.restore_item(dynamodb, s3, batch_item)
