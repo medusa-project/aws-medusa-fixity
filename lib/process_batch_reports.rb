@@ -20,7 +20,7 @@ class ProcessBatchReports
     job_id = get_job_id(dynamodb)
     job_info = get_job_info(s3_control, job_id)
     return nil if job_info.nil?
-    #TODO test check to see if job is complete
+
     return if get_job_status(job_info) != Settings.aws.s3.complete
     get_duration(job_info)
     job_failures = get_tasks_failed(job_info)
@@ -31,6 +31,7 @@ class ProcessBatchReports
     end
 
     manifest_key = get_manifest_key(s3, job_id)
+    return nil if manifest_key.nil?
     error_batch = parse_completion_report(dynamodb, s3, manifest_key)
     return nil if error_batch.empty?
 
@@ -70,6 +71,7 @@ class ProcessBatchReports
   def self.get_manifest_key(s3, job_id)
     key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
     s3_json_resp = s3.get_object(Settings.aws.s3.backup_bucket, key)
+    return nil if s3_json_resp.nil?
     manifest_key = JSON.parse(s3_json_resp.body.read)["Results"][0]["Key"]
     return manifest_key
   end

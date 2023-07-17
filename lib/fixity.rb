@@ -1,12 +1,10 @@
-require 'aws-sdk-s3'
 require 'digest'
-require 'aws-sdk-dynamodb'
-require 'cgi'
 require 'config'
 
 require_relative 'fixity/dynamodb'
-require_relative 'fixity/s3'
 require_relative 'fixity/fixity_constants'
+require_relative 'fixity/fixity_utils'
+require_relative 'fixity/s3'
 require_relative 'medusa_sqs'
 
 class Fixity
@@ -154,7 +152,7 @@ class Fixity
     md5 = Digest::MD5.new
     download_size_start = 0
     download_size_end = 16*MEGABYTE
-    key = CGI.unescape(s3_key)
+    key = FixityUtils.escape(s3_key)
     begin
       while download_size_start < file_size
         range = "bytes=#{download_size_start}-#{download_size_end}"

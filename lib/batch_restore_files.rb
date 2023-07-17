@@ -1,18 +1,15 @@
 # frozen_string_literal: true
-require 'aws-sdk-dynamodb'
-require 'aws-sdk-s3'
-require 'aws-sdk-s3control'
 require 'pg'
-require 'cgi'
 require 'config'
 
 require_relative 'fixity/batch_item'
 require_relative 'fixity/dynamodb'
-require_relative 'fixity/s3'
-require_relative 'fixity/s3_control'
 require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_secrets'
+require_relative 'fixity/fixity_utils'
 require_relative 'fixity/medusa_file'
+require_relative 'fixity/s3'
+require_relative 'fixity/s3_control'
 
 class BatchRestoreFiles
   MAX_BATCH_COUNT = 20000
@@ -146,7 +143,7 @@ class BatchRestoreFiles
       parent_type = dir_row["parent_type"]
       break if parent_type != "CfsDirectory"
     end
-    CGI.escape(path).gsub('%2F', '/')
+    FixityUtils.escape(path)
   end
 
   def self.get_path_hash(medusa_db, file_directories)
@@ -173,7 +170,7 @@ class BatchRestoreFiles
     medusa_files.each do |medusa_file|
       directory_path = directories["#{medusa_file.directory_id}"]
       path = directory_path + medusa_file.name
-      s3_key = CGI.escape(path).gsub('%2F', '/')
+      s3_key = FixityUtils.escape(path)
       open(manifest, 'a') { |f|
         f.puts "#{Settings.aws.s3.backup_bucket},#{s3_key}"
       }
@@ -238,7 +235,7 @@ class BatchRestoreFiles
   end
 
   def self.restore_item(dynamodb, s3, batch_item)
-    key = CGI.unescape(batch_item.s3_key)
+    key = FixityUtils.unescape(batch_item.s3_key)
     s3.restore_object(dynamodb, Settings.aws.s3.backup_bucket, key, batch_item.file_id)
     put_batch_item(dynamodb, batch_item)
   end
