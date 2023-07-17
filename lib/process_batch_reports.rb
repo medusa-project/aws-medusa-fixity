@@ -57,7 +57,8 @@ class ProcessBatchReports
   def self.get_duration(job_info)
     job_duration = job_info.job.progress_summary.timers.elapsed_time_in_active_seconds
     job_tasks = job_info.job.progress_summary.total_number_of_tasks
-    FixityConstants::LOGGER.info("Batch restoration job duration to process #{job_tasks} files: #{job_duration}")
+    job_id = job_info.job.job_id
+    FixityConstants::LOGGER.info("Batch restoration job #{job_id} duration to process #{job_tasks} files: #{job_duration} seconds")
   end
 
   def self.get_tasks_failed(job_info)
