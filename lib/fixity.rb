@@ -152,7 +152,7 @@ class Fixity
     md5 = Digest::MD5.new
     download_size_start = 0
     download_size_end = 16*MEGABYTE
-    key = FixityUtils.escape(s3_key)
+    key = FixityUtils.unescape(s3_key)
     begin
       while download_size_start < file_size
         range = "bytes=#{download_size_start}-#{download_size_end}"
