@@ -26,7 +26,8 @@ class MedusaSqs
                  Settings.aws.sqs.parameters => parameters,
                  Settings.aws.sqs.passthrough => passthrough}
     end
-
+    log_message = "SQS message: #{message.to_json}"
+    FixityConstants::LOGGER.info(log_message)
     @medusa_sqs_client.send_message({
       queue_url: Settings.aws.sqs.medusa_queue_url,
       message_body: message.to_json,
