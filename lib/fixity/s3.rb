@@ -82,8 +82,8 @@ class S3
       #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
       error_message = "Object with key: #{key} not found in bucket: #{bucket}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
-      # medusa_sqs = MedusaSqs.new
-      # medusa_sqs.send_medusa_message(file_id, nil, Settings.aws.dynamodb.false, Settings.aws.sqs.success, error_message)
+      medusa_sqs = MedusaSqs.new
+      medusa_sqs.send_medusa_message(file_id, nil, Settings.aws.dynamodb.false, Settings.aws.sqs.success, error_message)
     rescue StandardError => e
       # Error requesting object restoration, add to dynamodb table for retry?
       # Send error message to medusa

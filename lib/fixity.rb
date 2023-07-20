@@ -15,7 +15,7 @@ class Fixity
     #get object info from dynamodb
     dynamodb = Dynamodb.new
     s3 = S3.new
-    # medusa_sqs = MedusaSqs.new
+    medusa_sqs = MedusaSqs.new
 
     fixity_item = get_fixity_item(dynamodb)
 
@@ -48,13 +48,13 @@ class Fixity
     end
 
     # send sqs to medusa with result
-    # medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+    medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
   end
 
   def self.run_fixity_batch
     dynamodb = Dynamodb.new
     s3 = S3.new
-    # medusa_sqs = MedusaSqs.new
+    medusa_sqs = MedusaSqs.new
 
     #get fixity ready batch info from dynamodb
     fixity_batch = get_fixity_batch(dynamodb)
@@ -94,7 +94,7 @@ class Fixity
       end
 
       # send sqs to medusa with result
-      # medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
     end
   end
 
