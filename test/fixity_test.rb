@@ -9,11 +9,13 @@ class TestFixity < Minitest::Test
     mock_dynamodb = Minitest::Mock.new
     table_name = Settings.aws.dynamodb.fixity_table_name
     index_name = Settings.aws.dynamodb.index_name
+    query_resp = Object.new
+    def query_resp.items =  [{"TestItem" => "TestValue" }]
     limit = 1
     expr_attr_vals = {":ready" => Settings.aws.dynamodb.true,}
     key_cond_expr = "#{Settings.aws.dynamodb.fixity_ready} = :ready"
     args_verification = [table_name, index_name, limit, expr_attr_vals, key_cond_expr]
-    mock_dynamodb.expect(:query_with_index, [], args_verification)
+    mock_dynamodb.expect(:query_with_index, query_resp, args_verification)
     Fixity.get_fixity_item(mock_dynamodb)
     assert_mock(mock_dynamodb)
   end
@@ -35,7 +37,7 @@ class TestFixity < Minitest::Test
     mock_dynamodb_client = Minitest::Mock.new
     dynamodb = Dynamodb.new(mock_dynamodb_client)
     query_resp = Object.new
-    def query_resp.items =  [{"TestItem" => "TestValue" }]
+    def query_resp.items =  []
     def query_resp.empty? =  true
     dynamodb.stub(:query_with_index, nil) do
       resp = Fixity.get_fixity_item(dynamodb)
@@ -93,7 +95,7 @@ class TestFixity < Minitest::Test
     mock_dynamodb_client = Minitest::Mock.new
     dynamodb = Dynamodb.new(mock_dynamodb_client)
     query_resp = Object.new
-    def query_resp.items =  nil
+    def query_resp.items =  []
     def query_resp.empty? =  false
     dynamodb.stub(:query_with_index, query_resp) do
       resp = Fixity.get_fixity_batch(dynamodb)
@@ -156,7 +158,6 @@ class TestFixity < Minitest::Test
   end
 
   def test_calculate_checksum
-    #refactor to pass in s3_client
     mock_s3_client = Minitest::Mock.new
     s3 = S3.new(mock_s3_client)
     object_part = Object.new
@@ -169,6 +170,22 @@ class TestFixity < Minitest::Test
       checksum = Fixity.calculate_checksum(s3, test_key, 123, file_size, mock_dynamodb)
       assert_equal("79a84828694ed3ed5482b6d33dea7dd7", checksum)
     end
+  end
+
+  def test_calculate_checksum_character_unescaping
+    #refactor to pass in s3_client
+    mock_s3 = Minitest::Mock.new
+    object_part = Object.new
+    def object_part.body = IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", "r"), "r")
+    mock_dynamodb = Minitest::Mock.new
+    test_key = "123/%7Etest.tst"
+    test_key_unescaped = FixityUtils.unescape(test_key)
+    file_size = 12345
+    range = "bytes=0-16777216"
+    args_verification = [Settings.aws.s3.backup_bucket, test_key_unescaped, range]
+    mock_s3.expect(:get_object_with_byte_range, object_part, args_verification)
+    checksum = Fixity.calculate_checksum(mock_s3, test_key, 123, file_size, mock_dynamodb)
+    assert_mock(mock_s3)
   end
 
   # def test_calculate_checksum_error

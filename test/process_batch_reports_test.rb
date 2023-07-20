@@ -59,6 +59,8 @@ class TestProcessBatchReports < Minitest::Test
     mock_job_info.expect(:job, mock_job)
     mock_job.expect(:progress_summary, mock_progress_summary)
     mock_progress_summary.expect(:total_number_of_tasks, 12)
+    mock_job_info.expect(:job, mock_job)
+    mock_job.expect(:job_id, "job-123456")
     ProcessBatchReports.get_duration(mock_job_info)
     assert_mock(mock_job_info)
     assert_mock(mock_job)
@@ -100,9 +102,10 @@ class TestProcessBatchReports < Minitest::Test
     test_key = "123/test.tst"
     read_resp = {"Results" => [{"Key" => test_key}]}.to_json
     job_id = "job-123456789"
-    key = "#{Settings.aws.batch_prefix}/job-#{job_id}/manifest.json"
+    key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
     args_verification = [Settings.aws.s3.backup_bucket, key]
     mock_s3.expect(:get_object, mock_s3_resp, args_verification)
+    mock_s3_resp.expect(:nil?, false)
     mock_s3_resp.expect(:body, mock_body)
     mock_body.expect(:read, read_resp)
     manifest_key = ProcessBatchReports.get_manifest_key(mock_s3, job_id)
