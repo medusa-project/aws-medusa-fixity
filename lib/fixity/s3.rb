@@ -100,4 +100,14 @@ class S3
       dynamodb.put_item(Settings.aws.dynamodb.restoration_errors_table_name, item)
     end
   end
+  def found?(bucket, key, file_id)
+    s3_resource = Aws::S3::Resource.new(client: @s3_client)
+    found = s3_resource.bucket(bucket).object(key).exists?
+    unless found
+      medusa_sqs = MedusaSqs.new
+      error_message = "Object with key: #{key} not found in bucket: #{bucket}"
+      medusa_sqs.send_medusa_message(file_id, nil, Settings.aws.dynamodb.false, Settings.aws.sqs.success, error_message)
+    end
+    found
+  end
 end
