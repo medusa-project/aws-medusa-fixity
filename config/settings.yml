@@ -39,6 +39,7 @@ aws:
     s3:
         bulk: "Bulk"
         complete: "Complete"
+        access_denied: "AccessDenied"
     sqs:
         action: "action"
         file_fixity: "file_fixity"
