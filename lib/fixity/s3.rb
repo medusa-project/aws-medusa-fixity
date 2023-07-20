@@ -2,6 +2,7 @@
 require 'aws-sdk-s3'
 require 'config'
 require_relative 'fixity_constants'
+require_relative 'dynamodb'
 require_relative '../medusa_sqs'
 
 class S3
