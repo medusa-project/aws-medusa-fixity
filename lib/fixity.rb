@@ -100,11 +100,14 @@ class Fixity
   end
 
   def self.run_fixity_from_csv(csv_file)
+    time_start = Time.now
     dynamodb = Dynamodb.new
     s3 = S3.new
     medusa_sqs = MedusaSqs.new
     fixity_items = CSV.new(File.read(csv_file))
+    row_num = 0
     fixity_items.each do |row|
+      row_num+=1
       bucket, key = row
       update_fixity_ready(dynamodb, key)
       expr_attr_vals = {":key" => key,}
@@ -131,6 +134,9 @@ class Fixity
       # send sqs to medusa with result
       medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
     end
+    time_end = Time.now
+    duration = time_end - time_start
+    FixityConstants::LOGGER.info("Fixity from CSV duration to process #{row_num} files: #{duration}")
   end
 
   def self.get_fixity_item(dynamodb)
