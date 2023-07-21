@@ -1,5 +1,6 @@
 require 'digest'
 require 'config'
+require 'csv'
 
 require_relative 'fixity/dynamodb'
 require_relative 'fixity/fixity_constants'
@@ -88,6 +89,38 @@ class Fixity
       when Settings.aws.dynamodb.mismatch
         #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
         update_fixity_mismatch(dynamodb, s3_key, calculated_checksum)
+      else
+        outcome_message = "Fixity outcome not recognized"
+        FixityConstants::LOGGER.error(outcome_message)
+      end
+
+      # send sqs to medusa with result
+      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+    end
+  end
+
+  def self.run_fixity_from_csv(csv_file)
+    dynamodb = Dynamodb.new
+    s3 = S3.new
+    medusa_sqs = MedusaSqs.new
+    fixity_items = CSV.new(File.read(csv_file))
+    fixity_items.each do |row|
+      bucket, key = row
+      expr_attr_vals = {":key" => key,}
+      key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :key"
+      fixity_item = dynamodb.query(Settings.aws.dynamodb.fixity_table_name, 1, expr_attr_vals, key_cond_expr)
+      file_id = fixity_item.items[0][Settings.aws.dynamodb.file_id].to_i
+      file_size = fixity_item.items[0][Settings.aws.dynamodb.file_size]
+      initial_checksum = fixity_item.items[0][Settings.aws.dynamodb.initial_checksum]
+      calculated_checksum = calculate_checksum(s3, key, file_id, file_size, dynamodb)
+      fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamodb.match : Settings.aws.dynamodb.mismatch
+      case fixity_outcome
+      when Settings.aws.dynamodb.match
+        #update dynamodb calculated checksum, fixity status, fixity verification
+        update_fixity_match(dynamodb, key, calculated_checksum)
+      when Settings.aws.dynamodb.mismatch
+        #update dynamodb mismatch, calculated checksum, fixity status, fixity verification
+        update_fixity_mismatch(dynamodb, key, calculated_checksum)
       else
         outcome_message = "Fixity outcome not recognized"
         FixityConstants::LOGGER.error(outcome_message)
