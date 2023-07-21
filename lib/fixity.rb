@@ -106,6 +106,7 @@ class Fixity
     fixity_items = CSV.new(File.read(csv_file))
     fixity_items.each do |row|
       bucket, key = row
+      update_fixity_ready(dynamodb, key)
       expr_attr_vals = {":key" => key,}
       key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :key"
       fixity_item = dynamodb.query(Settings.aws.dynamodb.fixity_table_name, 1, expr_attr_vals, key_cond_expr)
