@@ -113,6 +113,7 @@ class Fixity
       file_size = fixity_item.items[0][Settings.aws.dynamodb.file_size]
       initial_checksum = fixity_item.items[0][Settings.aws.dynamodb.initial_checksum]
       calculated_checksum = calculate_checksum(s3, key, file_id, file_size, dynamodb)
+
       fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamodb.match : Settings.aws.dynamodb.mismatch
       case fixity_outcome
       when Settings.aws.dynamodb.match
@@ -182,6 +183,11 @@ class Fixity
   def self.calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
     # stream s3 object through md5 calculation in 16 mb chunks
     # compare with initial md5 checksum and send medusa result via sqs
+    if file_size.nil?
+      error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: file size nil"
+      FixityConstants::LOGGER.error(error_message)
+      return nil
+    end
     md5 = Digest::MD5.new
     download_size_start = 0
     download_size_end = 16*MEGABYTE
