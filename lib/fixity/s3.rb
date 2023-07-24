@@ -2,6 +2,7 @@
 require 'aws-sdk-s3'
 require 'config'
 require_relative 'fixity_constants'
+require_relative 'fixity_utils'
 require_relative 'dynamodb'
 require_relative '../medusa_sqs'
 
@@ -79,12 +80,6 @@ class S3
           },
         },
       })
-    rescue Aws::S3::Errors::NoSuchKey => e
-      #File not found in S3 bucket, don't add to dynamodb table (maybe add to separate table for investigation?)
-      error_message = "Object with key: #{key} not found in bucket: #{bucket}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-      medusa_sqs = MedusaSqs.new
-      medusa_sqs.send_medusa_message(file_id, nil, Settings.aws.dynamodb.false, Settings.aws.sqs.success, error_message)
     rescue StandardError => e
       # Error requesting object restoration, add to dynamodb table for retry?
       # Send error message to medusa
@@ -102,6 +97,7 @@ class S3
   end
   def found?(bucket, key, file_id)
     s3_resource = Aws::S3::Resource.new(client: @s3_client)
+    key = FixityUtils.unescape(key)
     found = s3_resource.bucket(bucket).object(key).exists?
     unless found
       medusa_sqs = MedusaSqs.new

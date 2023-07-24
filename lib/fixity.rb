@@ -32,7 +32,7 @@ class Fixity
     update_fixity_ready(dynamodb_client, s3_key)
 
     #compare calculated checksum with initial checksum
-    calculated_checksum = calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
+    calculated_checksum, error_message = calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
 
     fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamodb.match : Settings.aws.dynamodb.mismatch
 
@@ -49,7 +49,7 @@ class Fixity
     end
 
     # send sqs to medusa with result
-    medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+    create_medusa_message(medusa_sqs, file_id, calculated_checksum, error_message)
   end
 
   def self.run_fixity_batch
@@ -78,7 +78,7 @@ class Fixity
       FixityConstants::LOGGER.info(message)
 
       #compare calculated checksum with initial checksum
-      calculated_checksum = calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
+      calculated_checksum, error_message = calculate_checksum(s3, s3_key, file_id, file_size, dynamodb)
 
       fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamodb.match : Settings.aws.dynamodb.mismatch
 
@@ -95,7 +95,7 @@ class Fixity
       end
 
       # send sqs to medusa with result
-      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+      create_medusa_message(medusa_sqs, file_id, calculated_checksum, error_message)
     end
   end
 
@@ -116,7 +116,7 @@ class Fixity
       file_id = fixity_item.items[0][Settings.aws.dynamodb.file_id].to_i
       file_size = fixity_item.items[0][Settings.aws.dynamodb.file_size]
       initial_checksum = fixity_item.items[0][Settings.aws.dynamodb.initial_checksum]
-      calculated_checksum = calculate_checksum(s3, key, file_id, file_size, dynamodb)
+      calculated_checksum, error_message = calculate_checksum(s3, key, file_id, file_size, dynamodb)
 
       fixity_outcome = (calculated_checksum == initial_checksum) ? Settings.aws.dynamodb.match : Settings.aws.dynamodb.mismatch
       case fixity_outcome
@@ -132,7 +132,7 @@ class Fixity
       end
 
       # send sqs to medusa with result
-      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+      create_medusa_message(medusa_sqs, file_id, calculated_checksum, error_message)
     end
     time_end = Time.now
     duration = time_end - time_start
@@ -193,7 +193,7 @@ class Fixity
     if file_size.nil?
       error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: file size nil"
       FixityConstants::LOGGER.error(error_message)
-      return nil
+      return nil, error_message
     end
     md5 = Digest::MD5.new
     download_size_start = 0
@@ -212,9 +212,9 @@ class Fixity
       error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
       update_fixity_error(dynamodb, s3_key)
-      exit
+      return nil, error_message
     end
-    md5.hexdigest
+    return md5.hexdigest, nil
   end
 
   def self.update_fixity_match(dynamodb, s3_key, calculated_checksum)
@@ -264,6 +264,14 @@ class Fixity
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
                       "#E = :error"
     dynamodb.update_item_with_names(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr)
+  end
+
+  def self.create_medusa_message(medusa_sqs, file_id, calculated_checksum, error_message)
+    if calculated_checksum.nil?
+      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.failure, error_message)
+    else
+      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+    end
   end
 end
 
