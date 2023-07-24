@@ -102,7 +102,7 @@ class S3
     unless found
       medusa_sqs = MedusaSqs.new
       error_message = "Object with key: #{key} not found in bucket: #{bucket}"
-      medusa_sqs.send_medusa_message(file_id, nil, Settings.aws.dynamodb.false, Settings.aws.sqs.success, error_message)
+      medusa_sqs.send_medusa_message(file_id, nil, false, Settings.aws.sqs.success, error_message)
     end
     found
   end

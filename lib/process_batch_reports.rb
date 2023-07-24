@@ -99,6 +99,7 @@ class ProcessBatchReports
       error_batch.push(error_hash)
 
       #re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
+      #TODO update dynamodb to add file not found error after checking s3
       file_found= s3.found?(Settings.aws.s3.backup_bucket, key, file_id)
       s3.restore_object(dynamodb, Settings.aws.s3.backup_bucket, key, file_id) if file_found
     end

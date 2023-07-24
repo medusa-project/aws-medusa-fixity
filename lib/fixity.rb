@@ -268,9 +268,9 @@ class Fixity
 
   def self.create_medusa_message(medusa_sqs, file_id, calculated_checksum, error_message)
     if calculated_checksum.nil?
-      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.failure, error_message)
+      medusa_sqs.send_medusa_message(file_id, calculated_checksum, true, Settings.aws.sqs.failure, error_message)
     else
-      medusa_sqs.send_medusa_message(file_id, calculated_checksum, Settings.aws.dynamodb.true, Settings.aws.sqs.success)
+      medusa_sqs.send_medusa_message(file_id, calculated_checksum, true, Settings.aws.sqs.success)
     end
   end
 end
