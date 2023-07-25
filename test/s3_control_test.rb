@@ -7,20 +7,21 @@ require_relative '../lib/fixity/s3_control'
 class TestS3Control < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
 
+  def setup
+    @mock_s3_control_client = Minitest::Mock.new
+    @s3_control = S3Control.new(@mock_s3_control_client)
+  end
+
   def test_describe_job
-    mock_s3_control_client = Minitest::Mock.new
-    s3_control = S3Control.new(mock_s3_control_client)
     account_id = Settings.aws.account_id
     job_id = "job-1234567890"
     args_verification = [account_id: account_id, job_id: job_id]
-    mock_s3_control_client.expect(:describe_job, [], args_verification)
-    s3_control.describe_job(job_id)
-    assert_mock(mock_s3_control_client)
+    @mock_s3_control_client.expect(:describe_job, [], args_verification)
+    @s3_control.describe_job(job_id)
+    assert_mock(@mock_s3_control_client)
   end
 
   def test_create_job
-    mock_s3_control_client = Minitest::Mock.new
-    s3_control = S3Control.new(mock_s3_control_client)
     account_id = Settings.aws.account_id
     manifest = "manifest-#{Time.new(1).strftime('%F-%H:%M')}.csv"
     token = 123
@@ -39,8 +40,8 @@ class TestS3Control < Minitest::Test
       role_arn: Settings.aws.s3.batch_arn, # required
     }
     args_verification = [args]
-    mock_s3_control_client.expect(:create_job, [], args_verification)
-    s3_control.create_job(manifest, token, etag)
-    assert_mock(mock_s3_control_client)
+    @mock_s3_control_client.expect(:create_job, [], args_verification)
+    @s3_control.create_job(manifest, token, etag)
+    assert_mock(@mock_s3_control_client)
   end
 end

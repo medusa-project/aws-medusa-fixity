@@ -8,7 +8,7 @@ require_relative '../medusa_sqs'
 
 class S3
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
-  attr_accessor :s3_client
+  attr_accessor :s3_client, :s3_resource
 
   def initialize(s3_client = FixityConstants::S3_CLIENT)
     @s3_client = s3_client
@@ -95,15 +95,9 @@ class S3
       dynamodb.put_item(Settings.aws.dynamodb.restoration_errors_table_name, item)
     end
   end
-  def found?(bucket, key, file_id)
-    s3_resource = Aws::S3::Resource.new(client: @s3_client)
+
+  def found?(bucket, key, s3_resource = Aws::S3::Resource.new(client: @s3_client))
     key = FixityUtils.unescape(key)
-    found = s3_resource.bucket(bucket).object(key).exists?
-    unless found
-      medusa_sqs = MedusaSqs.new
-      error_message = "Object with key: #{key} not found in bucket: #{bucket}"
-      medusa_sqs.send_medusa_message(file_id, nil, false, Settings.aws.sqs.success, error_message)
-    end
-    found
+    s3_resource.bucket(bucket).object(key).exists?
   end
 end

@@ -1,12 +1,12 @@
 #!/bin/bash --login
 source ./set-test-vars.sh
-cd "$RUBY_HOME" || exit
+cd "$TEST_HOME" || exit
 total_runs=0
 total_asserts=0
 total_fails=0
 total_errs=0
 total_skips=0
-for filename in test/*.rb; do
+for filename in *.rb; do
     outcome=$(ruby "$filename" | tail -1)
     echo "$filename"
     echo "$outcome"
