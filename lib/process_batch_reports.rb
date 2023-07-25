@@ -93,7 +93,7 @@ class ProcessBatchReports
     batch_completion_table.each do |row|
       bucket, key, version_id, task_status, error_code, https_status_code, result_message = row
       file_id = get_file_id(key)
-      error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{error_code}:#{https_status_code}"
+      error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{https_status_code}:#{result_message}"
       FixityConstants::LOGGER.error(error_message)
 
       #re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
@@ -103,7 +103,7 @@ class ProcessBatchReports
         @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, file_id)
       else
         @medusa_sqs.send_medusa_message(file_id, nil, false, Settings.aws.sqs.success, error_message)
-        error_code = Settings.aws.dynamodb.not_found
+        https_status_code = Settings.aws.dynamodb.not_found
       end
 
       error_hash = {
