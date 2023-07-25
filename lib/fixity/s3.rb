@@ -83,7 +83,6 @@ class S3
     rescue StandardError => e
       # Error requesting object restoration, add to dynamodb table for retry?
       # Send error message to medusa
-      #TODO add to Dynamodb for retry
       error_message = "Error restoring object with key: #{key} from bucket #{bucket}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
       item = {

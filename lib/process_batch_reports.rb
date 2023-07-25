@@ -90,12 +90,22 @@ class ProcessBatchReports
     @s3.get_object_to_response_target(Settings.aws.s3.backup_bucket, manifest_key, response_target)
     batch_completion_table = CSV.new(File.read("report.csv"))
     error_batch = []
-    #TODO test key not in s3 bucket
     batch_completion_table.each do |row|
       bucket, key, version_id, task_status, error_code, https_status_code, result_message = row
       file_id = get_file_id(key)
       error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{error_code}:#{https_status_code}"
       FixityConstants::LOGGER.error(error_message)
+
+      #re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
+      file_found= @s3.found?(Settings.aws.s3.backup_bucket, key)
+      error_message = "Object with key: #{key} not found in bucket: #{bucket}"
+      if file_found
+        @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, file_id)
+      else
+        @medusa_sqs.send_medusa_message(file_id, nil, false, Settings.aws.sqs.success, error_message)
+        error_code = Settings.aws.dynamodb.not_found
+      end
+
       error_hash = {
         Settings.aws.dynamodb.s3_key => key,
         Settings.aws.dynamodb.file_id => file_id,
@@ -104,13 +114,6 @@ class ProcessBatchReports
         Settings.aws.dynamodb.last_updated => Time.now.getutc.iso8601(3)
       }
       error_batch.push(error_hash)
-
-      #re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
-      #TODO update dynamodb to add file not found error after checking s3
-      file_found= @s3.found?(Settings.aws.s3.backup_bucket, key)
-      error_message = "Object with key: #{key} not found in bucket: #{bucket}"
-      @medusa_sqs.send_medusa_message(file_id, nil, false, Settings.aws.sqs.success, error_message) unless file_found
-      @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, file_id) if file_found
     end
     return error_batch
   end

@@ -36,6 +36,7 @@ aws:
         true: "true"
         false: "false"
         message: "message"
+        not_found: "NotFoundInBucket"
     s3:
         bulk: "Bulk"
         complete: "Complete"
