@@ -18,10 +18,9 @@ class RestorationEvent
     @sqs = sqs
   end
   def handle_message
-    #TODO add test
-    response = @sqs.receive_message(queue_url: Settings.aws.sqs.s3_queue_url,
+    response = @sqs.receive_message({queue_url: Settings.aws.sqs.s3_queue_url,
                                                                 max_number_of_messages: 10,
-                                                                visibility_timeout: 300)
+                                                                visibility_timeout: 300})
     return nil if response.data.messages.count.zero?
     response.messages.each do |message|
       body = JSON.parse(message.body)
@@ -36,10 +35,10 @@ class RestorationEvent
       FixityConstants::LOGGER.info("PROCESSING: restore type: #{restore_type}, s3 key: #{s3_key}")
 
       case restore_type
-      when Settings.aws.dynamodb.restore_completed
+      when Settings.aws.s3.restore_completed
         #update dynamodb item to complete, mark fixity ready, and update last updated
         handle_completed(s3_key, file_size, restore_timestamp)
-      when Settings.aws.dynamodb.restore_deleted
+      when Settings.aws.s3.restore_deleted
         #update dynamodb item to expired, remove fixity ready, and update last updated
         handle_deleted(s3_key, file_size)
       else

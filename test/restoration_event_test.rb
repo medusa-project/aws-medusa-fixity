@@ -13,6 +13,94 @@ class TestRestorationEvent < Minitest::Test
     @mock_sqs = Minitest::Mock.new
     @restoration_event = RestorationEvent.new(@mock_s3, @mock_dynamodb, @mock_sqs)
   end
+
+  def test_handle_message_completed
+    mock_response = Minitest::Mock.new
+    mock_data = Minitest::Mock.new
+    mock_messages = Minitest::Mock.new
+    mock_message = Minitest::Mock.new
+    receive_args_verification = [{queue_url: Settings.aws.sqs.s3_queue_url,
+                                  max_number_of_messages: 10,
+                                  visibility_timeout: 300}]
+    @mock_sqs.expect(:receive_message, mock_response, receive_args_verification)
+    mock_response.expect(:data, mock_data)
+    mock_data.expect(:messages, mock_messages)
+    mock_messages.expect(:count, 1)
+    mock_response.expect(:messages, [mock_message])
+    mock_message.expect(:body, File.read("s3_restore_completed.json"))
+    mock_message.expect(:receipt_handle, "123")
+    delete_args_verification = [{queue_url: Settings.aws.sqs.s3_queue_url, receipt_handle: "123"}]
+    @mock_sqs.expect(:delete_message, nil, delete_args_verification)
+    key = { Settings.aws.dynamodb.s3_key => "123/test.txt" }
+    expr_attr_values= {
+      ":restoration_status" => Settings.aws.dynamodb.completed,
+      ":fixity_ready" => Settings.aws.dynamodb.true,
+      ":file_size" => "123456",
+      ":timestamp" => "1970-01-01T00:00:00.000Z"
+    }
+    update_expr = "SET #{Settings.aws.dynamodb.restoration_status} = :restoration_status, "\
+                      "#{Settings.aws.dynamodb.fixity_ready} = :fixity_ready, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, "\
+                      "#{Settings.aws.dynamodb.file_size} = :file_size"
+    dynamodb_args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr]
+    @mock_dynamodb.expect(:update_item, nil, dynamodb_args_verification)
+    resp = @restoration_event.handle_message
+    assert_mock(@mock_sqs)
+    assert_mock(@mock_dynamodb)
+  end
+
+  def test_handle_message_delete
+    mock_response = Minitest::Mock.new
+    mock_data = Minitest::Mock.new
+    mock_messages = Minitest::Mock.new
+    mock_message = Minitest::Mock.new
+    receive_args_verification = [{queue_url: Settings.aws.sqs.s3_queue_url,
+                                  max_number_of_messages: 10,
+                                  visibility_timeout: 300}]
+    @mock_sqs.expect(:receive_message, mock_response, receive_args_verification)
+    mock_response.expect(:data, mock_data)
+    mock_data.expect(:messages, mock_messages)
+    mock_messages.expect(:count, 1)
+    mock_response.expect(:messages, [mock_message])
+    mock_message.expect(:body, File.read("s3_restore_delete.json"))
+    mock_message.expect(:receipt_handle, "123")
+    delete_args_verification = [{queue_url: Settings.aws.sqs.s3_queue_url, receipt_handle: "123"}]
+    @mock_sqs.expect(:delete_message, nil, delete_args_verification)
+    key = { Settings.aws.dynamodb.s3_key => "123/test.txt" }
+    expr_attr_values = {
+      ":restoration_status" => Settings.aws.dynamodb.expired,
+      ":file_size" => "123456",
+      ":timestamp" => Time.new(2).getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamodb.restoration_status} = :restoration_status, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, "\
+                      "#{Settings.aws.dynamodb.file_size} = :file_size "\
+                  "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
+    ret_val =  "ALL_OLD"
+    dynamodb_args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr, ret_val]
+    @mock_dynamodb.expect(:update_item, nil, dynamodb_args_verification)
+    Time.stub(:now, Time.new(2)) do
+      resp = @restoration_event.handle_message
+      assert_mock(@mock_sqs)
+      assert_mock(@mock_dynamodb)
+    end
+  end
+
+  def test_handle_message_returns_nil_when_no_messages_available
+    mock_response = Minitest::Mock.new
+    mock_data = Minitest::Mock.new
+    mock_messages = Minitest::Mock.new
+    receive_args_verification = [{queue_url: Settings.aws.sqs.s3_queue_url,
+                                  max_number_of_messages: 10,
+                                  visibility_timeout: 300}]
+    @mock_sqs.expect(:receive_message, mock_response, receive_args_verification)
+    mock_response.expect(:data, mock_data)
+    mock_data.expect(:messages, mock_messages)
+    mock_messages.expect(:count, 0)
+    resp = @restoration_event.handle_message
+    assert_nil(resp)
+  end
+
   def test_handle_completed
     test_key = "123/test.tst"
     file_size = 12345

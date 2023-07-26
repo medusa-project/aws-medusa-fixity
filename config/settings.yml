@@ -25,11 +25,8 @@ aws:
         done: "DONE"
         error: "ERROR"
         requested: "REQUESTED"
-        restore_posted: "ObjectRestore:Post"
         initiated: "INITIATED"
-        restore_completed: "ObjectRestore:Completed"
         completed: "COMPLETED"
-        restore_deleted: "ObjectRestore:Delete"
         expired: "EXPIRED"
         match: "MATCH"
         mismatch: "MISMATCH"
@@ -40,6 +37,9 @@ aws:
     s3:
         bulk: "Bulk"
         complete: "Complete"
+        restore_posted: "ObjectRestore:Post"
+        restore_completed: "ObjectRestore:Completed"
+        restore_deleted: "ObjectRestore:Delete"
         access_denied: "AccessDenied"
     sqs:
         action: "action"
