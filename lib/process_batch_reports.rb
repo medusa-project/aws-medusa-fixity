@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'aws-sdk-dynamodb'
 require 'aws-sdk-s3'
 require 'aws-sdk-sqs'
@@ -22,14 +23,17 @@ class ProcessBatchReports
     @s3_control = s3_control
     @medusa_sqs = medusa_sqs
   end
+
   def process_failures
-    #TODO add test
+    # TODO: add test
     job_id = get_job_id
     return nil if job_id.nil?
+
     job_info = get_job_info(job_id)
     return nil if job_info.nil?
 
     return if get_job_status(job_info) != Settings.aws.s3.complete
+
     get_duration(job_info)
     job_failures = get_tasks_failed(job_info)
 
@@ -40,6 +44,7 @@ class ProcessBatchReports
 
     manifest_key = get_manifest_key(job_id)
     return nil if manifest_key.nil?
+
     error_batch = parse_completion_report(manifest_key)
     return nil if error_batch.empty?
 
@@ -53,12 +58,14 @@ class ProcessBatchReports
     table_name = Settings.aws.dynamodb.batch_job_ids_table_name
     scan_resp = @dynamodb.scan(table_name, 1)
     return nil if scan_resp.nil? || scan_resp.items.empty?
-    return scan_resp.items[0][Settings.aws.dynamodb.job_id]
+
+    scan_resp.items[0][Settings.aws.dynamodb.job_id]
   end
 
   def get_job_info(job_id)
     describe_resp = @s3_control.describe_job(job_id)
     return nil if describe_resp.nil?
+
     describe_resp
   end
 
@@ -81,23 +88,23 @@ class ProcessBatchReports
     key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
     s3_json_resp = @s3.get_object(Settings.aws.s3.backup_bucket, key)
     return nil if s3_json_resp.nil?
-    manifest_key = JSON.parse(s3_json_resp.body.read)["Results"][0]["Key"]
-    return manifest_key
+
+    JSON.parse(s3_json_resp.body.read)['Results'][0]['Key']
   end
 
   def parse_completion_report(manifest_key)
-    response_target = "./report.csv"
+    response_target = './report.csv'
     @s3.get_object_to_response_target(Settings.aws.s3.backup_bucket, manifest_key, response_target)
-    batch_completion_table = CSV.new(File.read("report.csv"))
+    batch_completion_table = CSV.new(File.read('report.csv'))
     error_batch = []
     batch_completion_table.each do |row|
-      bucket, key, version_id, task_status, error_code, https_status_code, result_message = row
+      bucket, key, _version_id, _task_status, error_code, https_status_code, result_message = row
       file_id = get_file_id(key)
       error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{https_status_code}:#{result_message}"
       FixityConstants::LOGGER.error(error_message)
 
-      #re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
-      file_found= @s3.found?(Settings.aws.s3.backup_bucket, key)
+      # re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
+      file_found = @s3.found?(Settings.aws.s3.backup_bucket, key)
       error_message = "Object with key: #{key} not found in bucket: #{bucket}"
       if file_found
         @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, file_id)
@@ -115,21 +122,22 @@ class ProcessBatchReports
       }
       error_batch.push(error_hash)
     end
-    return error_batch
+    error_batch
   end
 
   def get_file_id(s3_key)
     table_name = Settings.aws.dynamodb.fixity_table_name
     limit = 1
-    expr_attr_vals = { ":s3_key" => s3_key,}
+    expr_attr_vals = { ':s3_key' => s3_key }
     key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :s3_key"
-    query_resp= @dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
+    query_resp = @dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
     return nil if query_resp.nil? || query_resp.items.empty?
+
     query_resp.items[0][Settings.aws.dynamodb.file_id]
   end
 
   def remove_job_id(job_id)
-    key = { Settings.aws.dynamodb.job_id => job_id,}
+    key = { Settings.aws.dynamodb.job_id => job_id }
     table_name = Settings.aws.dynamodb.batch_job_ids_table_name
     @dynamodb.delete_item(key, table_name)
   end

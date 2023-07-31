@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'pg'
 require 'config'
 
@@ -13,7 +14,7 @@ require_relative 'fixity/s3_control'
 
 class BatchRestoreFiles
   MAX_BATCH_COUNT = 1000
-  MAX_BATCH_SIZE = 16*1024**2*MAX_BATCH_COUNT
+  MAX_BATCH_SIZE = 16 * 1024**2 * MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   attr_accessor :s3, :s3_control, :dynamodb, :medusa_db
 
@@ -24,8 +25,8 @@ class BatchRestoreFiles
     @medusa_db = medusa_db
   end
 
-  def get_batch_restore
-    #TODO add test
+  def batch_restore
+    # TODO: add test
     time_start = Time.now
     id = get_medusa_id
     return nil if id.nil?
@@ -40,11 +41,11 @@ class BatchRestoreFiles
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
     batch_continue = true
     while batch_continue
-      id_iterator, batch_continue  = get_id_iterator(id, max_id, batch_count)
+      id_iterator, batch_continue = get_id_iterator(id, max_id, batch_count)
       file_directories, medusa_files = get_files_in_batches(id, id_iterator)
-      batch_count = batch_count + medusa_files.size
+      batch_count += medusa_files.size
       id = id_iterator
-      #next if (file_directories.nil? || file_directories.empty?) || (medusa_files.nil? || medusa_files.empty?)
+      # next if (file_directories.nil? || file_directories.empty?) || (medusa_files.nil? || medusa_files.empty?)
       directories = get_path_hash(file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
       put_requests = @dynamodb.get_put_requests(batch)
@@ -61,8 +62,8 @@ class BatchRestoreFiles
     send_batch_job(manifest, etag)
   end
 
-  def get_batch_restore_from_list(list)
-    #TODO add test
+  def batch_restore_from_list(list)
+    # TODO: add test
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
     file_directories, medusa_files = get_batch_from_list(list)
     directories = get_path_hash(file_directories)
@@ -78,21 +79,22 @@ class BatchRestoreFiles
   def get_medusa_id
     table_name = Settings.aws.dynamodb.medusa_db_id_table_name
     limit = 1
-    expr_attr_vals = { ":file_type" => Settings.aws.dynamodb.current_id, }
+    expr_attr_vals = { ':file_type' => Settings.aws.dynamodb.current_id }
     key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :file_type"
     query_resp = @dynamodb.query(table_name, limit, expr_attr_vals, key_cond_expr)
     return nil if query_resp.nil? || query_resp.items.empty?
+
     query_resp.items[0][Settings.aws.dynamodb.file_id].to_i
   end
 
   def get_max_id
-    max_resp = @medusa_db.exec("SELECT MAX(id) FROM cfs_files")
-    max_resp.first["max"].to_i
+    max_resp = @medusa_db.exec('SELECT MAX(id) FROM cfs_files')
+    max_resp.first['max'].to_i
   end
 
   def evaluate_done(id, max_id)
     done = id >= max_id
-    done_message = "DONE: fixity id matches maximum file id in medusa"
+    done_message = 'DONE: fixity id matches maximum file id in medusa'
     FixityConstants::LOGGER.error(done_message) if done
     done
   end
@@ -100,76 +102,77 @@ class BatchRestoreFiles
   def get_id_iterator(id, max_id, batch_count)
     temp_itr = id + 1000
     count_left = id + (MAX_BATCH_COUNT - batch_count)
-    if temp_itr < max_id and temp_itr < count_left
-      return temp_itr, true
+    if (temp_itr < max_id) && (temp_itr < count_left)
+      [temp_itr, true]
     elsif temp_itr >= max_id
-      return max_id, false
+      [max_id, false]
     else
-      return count_left, false
+      [count_left, false]
     end
   end
 
   def get_file(id)
-    file_result = @medusa_db.exec_params("SELECT * FROM cfs_files WHERE id=$1", [{:value =>id.to_s}])
+    file_result = @medusa_db.exec_params('SELECT * FROM cfs_files WHERE id=$1', [{ value: id.to_s }])
     file_result.first
   end
 
   def get_files_in_batches(id, id_iterator)
-    #TODO add batch size as class variable to keep track of file sizes
+    # TODO: add batch size as class variable to keep track of file sizes
     # expand to take batch size into account
     medusa_files = []
     file_directories = []
-    file_result = @medusa_db.exec_params("SELECT * FROM cfs_files WHERE id>$1 AND  id<=$2", [{:value =>id.to_s},
-                                                                                            {:value => id_iterator.to_s}])
+    file_result = @medusa_db.exec_params('SELECT * FROM cfs_files WHERE id>$1 AND  id<=$2', [{ value: id.to_s },
+                                                                                             { value: id_iterator.to_s }])
     file_result.each do |file_row|
       next if file_row.nil?
-      file_id = file_row["id"]
-      directory_id = file_row["cfs_directory_id"]
-      name = file_row["name"]
-      size = file_row["size"].to_i
-      initial_checksum = file_row["md5_sum"]
+
+      file_id = file_row['id']
+      directory_id = file_row['cfs_directory_id']
+      name = file_row['name']
+      _size = file_row['size'].to_i
+      initial_checksum = file_row['md5_sum']
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    return file_directories.uniq, medusa_files
+    [file_directories.uniq, medusa_files]
   end
 
   def get_path(directory_id, path)
     while directory_id
-      dir_result = @medusa_db.exec_params("SELECT * FROM cfs_directories WHERE id=$1", [{:value =>directory_id}])
+      dir_result = @medusa_db.exec_params('SELECT * FROM cfs_directories WHERE id=$1', [{ value: directory_id }])
       dir_row = dir_result.first
-      dir_path = dir_row["path"]
-      path.prepend(dir_path,'/')
-      directory_id = dir_row["parent_id"]
-      parent_type = dir_row["parent_type"]
-      break if parent_type != "CfsDirectory"
+      dir_path = dir_row['path']
+      path.prepend(dir_path, '/')
+      directory_id = dir_row['parent_id']
+      parent_type = dir_row['parent_type']
+      break if parent_type != 'CfsDirectory'
     end
     FixityUtils.escape(path)
   end
 
   def get_path_hash(file_directories)
-    directories = Hash.new
+    directories = {}
     file_directories.each do |directory_id|
       path = String.new
       file_directory = directory_id
       while directory_id
-        dir_result = @medusa_db.exec_params("SELECT * FROM cfs_directories WHERE id=$1", [{:value =>directory_id}])
+        dir_result = @medusa_db.exec_params('SELECT * FROM cfs_directories WHERE id=$1', [{ value: directory_id }])
         dir_row = dir_result.first
-        dir_path = dir_row["path"]
-        path.prepend(dir_path,"/")
-        directory_id = dir_row["parent_id"]
-        parent_type = dir_row["parent_type"]
-        break if parent_type != "CfsDirectory"
+        dir_path = dir_row['path']
+        path.prepend(dir_path, '/')
+        directory_id = dir_row['parent_id']
+        parent_type = dir_row['parent_type']
+        break if parent_type != 'CfsDirectory'
       end
       directories[file_directory] = path
     end
-    return directories
+    directories
   end
 
   def generate_manifest(manifest, medusa_files, directories)
     batch = []
     medusa_files.each do |medusa_file|
-      directory_path = directories["#{medusa_file.directory_id}"]
+      directory_path = directories[medusa_file.directory_id.to_s]
       path = directory_path + medusa_file.name
       s3_key = FixityUtils.escape(path)
       open(manifest, 'a') { |f|
@@ -184,14 +187,14 @@ class BatchRestoreFiles
       }
       batch.push(batch_hash)
     end
-    return batch
+    batch
   end
 
   def put_medusa_id(id)
     table_name = Settings.aws.dynamodb.medusa_db_id_table_name
     item = {
       Settings.aws.dynamodb.id_type => Settings.aws.dynamodb.current_id,
-      Settings.aws.dynamodb.file_id => id.to_s,
+      Settings.aws.dynamodb.file_id => id.to_s
     }
     @dynamodb.put_item(table_name, item)
   end
@@ -224,15 +227,15 @@ class BatchRestoreFiles
         FixityConstants::LOGGER.error("File with id #{id} not found in medusa DB")
         next
       end
-      file_id = file_row["id"]
-      directory_id = file_row["cfs_directory_id"]
-      name = file_row["name"]
-      size = file_row["size"].to_i
-      initial_checksum = file_row["md5_sum"]
+      file_id = file_row['id']
+      directory_id = file_row['cfs_directory_id']
+      name = file_row['name']
+      _size = file_row['size'].to_i
+      initial_checksum = file_row['md5_sum']
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    return file_directories.uniq, medusa_files
+    [file_directories.uniq, medusa_files]
   end
 
   def restore_item(batch_item)
@@ -254,10 +257,11 @@ class BatchRestoreFiles
   def get_request_token
     table_name = Settings.aws.dynamodb.medusa_db_id_table_name
     limit = 1
-    expr_attr_values = { ":request_token" => Settings.aws.dynamodb.current_request_token,}
+    expr_attr_values = { ':request_token' => Settings.aws.dynamodb.current_request_token }
     key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :request_token"
     query_resp = @dynamodb.query(table_name, limit, expr_attr_values, key_cond_expr)
     return nil if query_resp.nil? || query_resp.items.empty?
+
     query_resp.items[0][Settings.aws.dynamodb.file_id].to_i
   end
 
@@ -265,14 +269,14 @@ class BatchRestoreFiles
     table_name = Settings.aws.dynamodb.medusa_db_id_table_name
     item = {
       Settings.aws.dynamodb.id_type => Settings.aws.dynamodb.current_request_token,
-      Settings.aws.dynamodb.file_id => token.to_s,
+      Settings.aws.dynamodb.file_id => token.to_s
     }
     @dynamodb.put_item(table_name, item)
   end
 
   def put_job_id(job_id)
     table_name = Settings.aws.dynamodb.batch_job_ids_table_name
-    item = { Settings.aws.dynamodb.job_id => job_id, }
+    item = { Settings.aws.dynamodb.job_id => job_id }
     @dynamodb.put_item(table_name, item)
   end
 end
