@@ -20,10 +20,8 @@ class Fixity
   end
 
   def run_fixity
-    #TODO add test
     #get object info from dynamodb
     fixity_item = get_fixity_item
-
     s3_key = fixity_item[Settings.aws.dynamodb.s3_key]
     file_id = fixity_item[Settings.aws.dynamodb.file_id].to_i
     initial_checksum = fixity_item[Settings.aws.dynamodb.initial_checksum]
@@ -42,6 +40,12 @@ class Fixity
 
     # send sqs to medusa with result
     create_medusa_message(file_id, calculated_checksum, error_message)
+  end
+
+  def start_fixity
+    while true
+      run_fixity_batch
+    end
   end
 
   def run_fixity_batch

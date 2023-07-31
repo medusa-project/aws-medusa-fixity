@@ -2,7 +2,7 @@
 source /home/ec2-user/aws-medusa-fixity/bin/set-vars.sh
 
 #Run fixity on restored files in order of restoration completion
-
-( cd /home/ec2-user/aws-medusa-fixity || exit; ruby -r "./lib/batch_restore_files.rb" -e "BatchRestoreFiles.get_batch_restore" )
-
+ruby "$BIN_HOME"/start_batch_restoration.rb &
+RESTORATION_PID=$!
+echo "$RESTORATION_PID" > "$TMP_HOME"/batch_restoration.pid
 exit 0

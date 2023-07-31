@@ -13,6 +13,64 @@ class TestFixity < Minitest::Test
     @fixity = Fixity.new(@mock_s3, @mock_dynamodb, @mock_medusa_sqs)
   end
 
+  def test_run_fixity
+    key = { Settings.aws.dynamodb.s3_key => "123/test.txt" }
+    checksum = "79a84828694ed3ed5482b6d33dea7dd7"
+    table_name = Settings.aws.dynamodb.fixity_table_name
+    query_args_verification = [table_name,
+                               Settings.aws.dynamodb.index_name,
+                               1,
+                               {":ready" => Settings.aws.dynamodb.true,},
+                               "#{Settings.aws.dynamodb.fixity_ready} = :ready"]
+    items = [{Settings.aws.dynamodb.s3_key => "123/test.txt", Settings.aws.dynamodb.file_id => "123",
+              Settings.aws.dynamodb.initial_checksum => checksum, Settings.aws.dynamodb.file_size => 123456}]
+    mock_query_resp = Minitest::Mock.new
+    @mock_dynamodb.expect(:query_with_index, mock_query_resp, query_args_verification)
+    mock_query_resp.expect(:nil?, false)
+    mock_query_resp.expect(:items, items)
+    mock_query_resp.expect(:items, items)
+    expr_attr_values = {
+      ":fixity_status" => Settings.aws.dynamodb.calculating,
+      ":timestamp" => Time.new(2).getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
+                  "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
+    update_args_verification = [table_name, key, expr_attr_values, update_expr]
+    @mock_dynamodb.expect(:update_item, nil, update_args_verification)
+    object_part = Minitest::Mock.new
+    object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", "r"), "r"))
+    s3_args_verification = [Settings.aws.s3.backup_bucket, "123/test.txt", "bytes=0-16777216"]
+    @mock_s3.expect(:get_object_with_byte_range, object_part, s3_args_verification)
+
+    expr_attr_values = {
+      ":fixity_status" => Settings.aws.dynamodb.done,
+      ":fixity_outcome" => Settings.aws.dynamodb.match,
+      ":calculated_checksum" => checksum,
+      ":timestamp" => Time.new(2).getutc.iso8601(3)
+    }
+    update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp"
+    args_verification = [table_name, key, expr_attr_values, update_expr]
+    @mock_dynamodb.expect(:update_item, [], args_verification)
+    file_id = 123
+    error_message = nil
+    args_verification = [file_id, checksum, true, Settings.aws.sqs.success]
+    @mock_medusa_sqs.expect(:send_medusa_message, [], args_verification)
+    Time.stub(:now, Time.new(2)) do
+      @fixity.run_fixity
+      assert_mock(@mock_dynamodb)
+      assert_mock(@mock_s3)
+      assert_mock(@mock_medusa_sqs)
+    end
+  end
+
+  def test_run_fixity_batch
+
+  end
+
   def test_get_fixity_item
     item = {"TestItem" => "TestValue" }
     query_resp = Object.new
@@ -126,14 +184,16 @@ class TestFixity < Minitest::Test
     table_name = Settings.aws.dynamodb.fixity_table_name
     key = { Settings.aws.dynamodb.s3_key => test_key }
     expr_attr_vals = { ":fixity_status" => Settings.aws.dynamodb.calculating,
-                       ":timestamp" => Time.now.getutc.iso8601(3)}
+                       ":timestamp" => Time.new(2).getutc.iso8601(3)}
     update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
     args_verification = [table_name, key, expr_attr_vals, update_expr]
     @mock_dynamodb.expect(:update_item, [], args_verification)
-    @fixity.update_fixity_ready(test_key)
-    assert_mock(@mock_dynamodb)
+    Time.stub(:now, Time.new(2)) do
+      @fixity.update_fixity_ready(test_key)
+      assert_mock(@mock_dynamodb)
+    end
   end
 
   def test_calculate_checksum
