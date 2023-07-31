@@ -13,7 +13,7 @@ pid_files = %W[#{temp_home}/fixity.1.pid #{temp_home}/fixity.2.pid #{temp_home}/
 pid_files.each do |pid_file|
   pid_id = File.read(pid_file).split.first.to_i
   running = Pid.running?(File.read(pid_file).split.first.to_i)
-  FixityConstants::Logger.info("Pid #{pid_id} running?: #{running}")
+  FixityConstants::LOGGER.info("Pid #{pid_id} running?: #{running}")
   next if running
 
   task = IO.popen("ruby #{bin_home}/compute_fixity.rb")
