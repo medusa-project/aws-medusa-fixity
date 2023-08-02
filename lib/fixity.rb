@@ -49,7 +49,6 @@ class Fixity
   end
 
   def run_fixity_batch
-    # TODO: add test
     # get fixity ready batch info from dynamodb
     fixity_batch = get_fixity_batch
     return nil if fixity_batch.nil? || fixity_batch.empty?
