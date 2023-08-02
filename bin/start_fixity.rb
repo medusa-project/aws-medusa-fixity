@@ -2,10 +2,8 @@
 # frozen_string_literal: true
 
 require_relative 'pid'
-require_relative 'set_env_vars'
 require_relative '../lib/fixity/fixity_constants'
 
-SetEnvVars.set_vars
 temp_home = ENV['TMP_HOME']
 bin_home = ENV['BIN_HOME']
 pid_files = %W[#{temp_home}/fixity.1.pid #{temp_home}/fixity.2.pid #{temp_home}/fixity.3.pid]
