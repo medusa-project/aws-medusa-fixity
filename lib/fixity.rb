@@ -79,7 +79,6 @@ class Fixity
   end
 
   def run_fixity_from_csv(csv_file)
-    # TODO: add test
     time_start = Time.now
 
     fixity_items = CSV.new(File.read(csv_file))
@@ -87,10 +86,7 @@ class Fixity
     fixity_items.each do |row|
       row_num += 1
       _bucket, key = row
-      update_fixity_ready(key)
-      expr_attr_vals = { ':key' => key }
-      key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :key"
-      fixity_item = @dynamodb.query(Settings.aws.dynamodb.fixity_table_name, 1, expr_attr_vals, key_cond_expr)
+      fixity_item = update_fixity_ready(key)
       file_id = fixity_item.items[0][Settings.aws.dynamodb.file_id].to_i
       file_size = fixity_item.items[0][Settings.aws.dynamodb.file_size]
       initial_checksum = fixity_item.items[0][Settings.aws.dynamodb.initial_checksum]
@@ -154,7 +150,7 @@ class Fixity
     update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
-    @dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr)
+    @dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr, 'ALL_NEW')
   end
 
   def calculate_checksum(s3_key, file_id, file_size)

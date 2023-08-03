@@ -36,7 +36,7 @@ class TestFixity < Minitest::Test
     update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
-    update_args_verification = [table_name, key, expr_attr_values, update_expr]
+    update_args_verification = [table_name, key, expr_attr_values, update_expr, 'ALL_NEW']
     @mock_dynamodb.expect(:update_item, nil, update_args_verification)
     object_part = Minitest::Mock.new
     object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r'))
@@ -69,13 +69,19 @@ class TestFixity < Minitest::Test
 
   def test_run_fixity_batch
     table_name = Settings.aws.dynamodb.fixity_table_name
-    checksum = "79a84828694ed3ed5482b6d33dea7dd7"
+    checksum = '79a84828694ed3ed5482b6d33dea7dd7'
+    mismatch_checksum = '12345678901234567890123456789012'
+
+    # Test item 1 info
     key1 = '123/test.tst'
-    key2 = '456/test.txt'
     dynamodb_key1 = { Settings.aws.dynamodb.s3_key => key1 }
-    dynamodb_key2 = { Settings.aws.dynamodb.s3_key => key2 }
     file_id1 = '123'
+
+    # Test item 2 info
+    key2 = '456/test.txt'
+    dynamodb_key2 = { Settings.aws.dynamodb.s3_key => key2 }
     file_id2 = '456'
+    # Query items with fixity_ready true to be processed
     mock_query_resp = Minitest::Mock.new
     expr_attr_vals = { ':ready' => Settings.aws.dynamodb.true }
     key_cond_expr = "#{Settings.aws.dynamodb.fixity_ready} = :ready"
@@ -85,12 +91,14 @@ class TestFixity < Minitest::Test
                Settings.aws.dynamodb.initial_checksum => checksum, Settings.aws.dynamodb.file_size => 123_456,
                Settings.aws.dynamodb.fixity_ready => Settings.aws.dynamodb.true },
              { Settings.aws.dynamodb.s3_key => key2, Settings.aws.dynamodb.file_id => file_id2,
-               Settings.aws.dynamodb.initial_checksum => checksum, Settings.aws.dynamodb.file_size => 456_789,
+               Settings.aws.dynamodb.initial_checksum => mismatch_checksum, Settings.aws.dynamodb.file_size => 456_789,
                Settings.aws.dynamodb.fixity_ready => Settings.aws.dynamodb.true }]
     mock_query_resp.expect(:nil?, false)
     mock_query_resp.expect(:empty?, false)
     mock_query_resp.expect(:items, items)
     mock_query_resp.expect(:items, items)
+
+    # Batch write items output
     update_fixity_batch = [[{ put_request: { item: { Settings.aws.dynamodb.s3_key => key1,
                                                      Settings.aws.dynamodb.file_id => file_id1,
                                                      Settings.aws.dynamodb.initial_checksum => checksum,
@@ -99,34 +107,52 @@ class TestFixity < Minitest::Test
                                                      Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating} } },
                             { put_request: { item: { Settings.aws.dynamodb.s3_key => key2,
                                                      Settings.aws.dynamodb.file_id => file_id2,
-                                                     Settings.aws.dynamodb.initial_checksum => checksum,
+                                                     Settings.aws.dynamodb.initial_checksum => mismatch_checksum,
                                                      Settings.aws.dynamodb.file_size => 456_789,
                                                      Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3),
                                                      Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating} } }]]
     @mock_dynamodb.expect(:batch_write_items, [], [Settings.aws.dynamodb.fixity_table_name, update_fixity_batch])
+
+    # Setup S3 mock calculating checksums
     object_part = Minitest::Mock.new
+
+    # Test item 1
     object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r'))
     s3_args_verification = [Settings.aws.s3.backup_bucket, key1, 'bytes=0-16777216']
     @mock_s3.expect(:get_object_with_byte_range, object_part, s3_args_verification)
-    s3_args_verification = [Settings.aws.s3.backup_bucket, key2, 'bytes=0-16777216']
-    object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r'))
-    @mock_s3.expect(:get_object_with_byte_range, object_part, s3_args_verification)
-    expr_attr_values = {
+    fixity_match_expr_attr_values = {
       ':fixity_status' => Settings.aws.dynamodb.done,
       ':fixity_outcome' => Settings.aws.dynamodb.match,
       ':calculated_checksum' => checksum,
       ':timestamp' => Time.new(2).getutc.iso8601(3)
     }
-    update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+    fixity_match_update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
                       "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp"
-    args_verification = [table_name, dynamodb_key1, expr_attr_values, update_expr]
-    @mock_dynamodb.expect(:update_item, [], args_verification)
-    args_verification = [table_name, dynamodb_key2, expr_attr_values, update_expr]
+    args_verification = [table_name, dynamodb_key1, fixity_match_expr_attr_values, fixity_match_update_expr]
     @mock_dynamodb.expect(:update_item, [], args_verification)
     args_verification = [file_id1.to_i, checksum, true, Settings.aws.sqs.success]
     @mock_medusa_sqs.expect(:send_medusa_message, [], args_verification)
+
+    # Test item 2
+    fixity_mismatch_expr_attr_values = {
+      ':mismatch' => Settings.aws.dynamodb.true,
+      ':fixity_status' => Settings.aws.dynamodb.done,
+      ':fixity_outcome' => Settings.aws.dynamodb.mismatch,
+      ':calculated_checksum' => checksum,
+      ':timestamp' => Time.new(2).getutc.iso8601(3)
+    }
+    fixity_mismatch_update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
+                      "#{Settings.aws.dynamodb.mismatch} = :mismatch"
+    s3_args_verification = [Settings.aws.s3.backup_bucket, key2, 'bytes=0-16777216']
+    object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r'))
+    @mock_s3.expect(:get_object_with_byte_range, object_part, s3_args_verification)
+    args_verification = [table_name, dynamodb_key2, fixity_mismatch_expr_attr_values, fixity_mismatch_update_expr]
+    @mock_dynamodb.expect(:update_item, [], args_verification)
     args_verification = [file_id2.to_i, checksum, true, Settings.aws.sqs.success]
     @mock_medusa_sqs.expect(:send_medusa_message, [], args_verification)
     Time.stub(:now, Time.new(2)) do
@@ -138,11 +164,109 @@ class TestFixity < Minitest::Test
   end
 
   def test_run_fixity_from_csv
+    table_name = Settings.aws.dynamodb.fixity_table_name
+    checksum = '79a84828694ed3ed5482b6d33dea7dd7'
+    mismatch_checksum = '12345678901234567890123456789012'
+    file_id1 = '1'
+    key1 = '1/2/3/test'
+    dynamodb_key1 = { Settings.aws.dynamodb.s3_key => key1 }
+    file_id2 = '2'
+    key2 = '4/5/6/test1'
+    dynamodb_key2 = { Settings.aws.dynamodb.s3_key => key2 }
+    file_id3 = '3'
+    key3 = '1/2/3/test3'
+    dynamodb_key3 = { Settings.aws.dynamodb.s3_key => key3 }
+    fixity_ready_expr_attr_values = {
+      ':fixity_status' => Settings.aws.dynamodb.calculating,
+      ':timestamp' => Time.new(2).getutc.iso8601(3)
+    }
+    fixity_ready_update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
+                  "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
+    mock_resp = Minitest::Mock.new
+    items1 = [{Settings.aws.dynamodb.file_id => file_id1, Settings.aws.dynamodb.file_size => 1234,
+               Settings.aws.dynamodb.initial_checksum => checksum}]
+    items2 = [{Settings.aws.dynamodb.file_id => file_id2, Settings.aws.dynamodb.file_size => 2345,
+               Settings.aws.dynamodb.initial_checksum => checksum}]
+    items3 = [{Settings.aws.dynamodb.file_id => file_id3, Settings.aws.dynamodb.file_size => 3456,
+               Settings.aws.dynamodb.initial_checksum => mismatch_checksum}]
 
+    # Test Item 1
+    arg_verification = [table_name, dynamodb_key1, fixity_ready_expr_attr_values, fixity_ready_update_expr, 'ALL_NEW']
+    @mock_dynamodb.expect(:update_item, mock_resp, arg_verification)
+    mock_resp.expect(:items, items1)
+    mock_resp.expect(:items, items1)
+    mock_resp.expect(:items, items1)
+    object_part = Minitest::Mock.new
+    object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r'))
+    s3_args_verification = [Settings.aws.s3.backup_bucket, key1, 'bytes=0-16777216']
+    @mock_s3.expect(:get_object_with_byte_range, object_part, s3_args_verification)
+    fixity_match_expr_attr_values = {
+      ':fixity_status' => Settings.aws.dynamodb.done,
+      ':fixity_outcome' => Settings.aws.dynamodb.match,
+      ':calculated_checksum' => checksum,
+      ':timestamp' => Time.new(2).getutc.iso8601(3)
+    }
+    fixity_match_update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp"
+    args_verification = [table_name, dynamodb_key1, fixity_match_expr_attr_values, fixity_match_update_expr]
+    @mock_dynamodb.expect(:update_item, [], args_verification)
+    args_verification = [file_id1.to_i, checksum, true, Settings.aws.sqs.success]
+    @mock_medusa_sqs.expect(:send_medusa_message, [], args_verification)
+
+    # Test Item 2
+    arg_verification = [table_name, dynamodb_key2, fixity_ready_expr_attr_values, fixity_ready_update_expr, 'ALL_NEW']
+    @mock_dynamodb.expect(:update_item, mock_resp, arg_verification)
+    mock_resp.expect(:items, items2)
+    mock_resp.expect(:items, items2)
+    mock_resp.expect(:items, items2)
+    s3_args_verification = [Settings.aws.s3.backup_bucket, key2, 'bytes=0-16777216']
+    object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r'))
+    @mock_s3.expect(:get_object_with_byte_range, object_part, s3_args_verification)
+    args_verification = [table_name, dynamodb_key2, fixity_match_expr_attr_values, fixity_match_update_expr]
+    @mock_dynamodb.expect(:update_item, [], args_verification)
+    args_verification = [file_id2.to_i, checksum, true, Settings.aws.sqs.success]
+    @mock_medusa_sqs.expect(:send_medusa_message, [], args_verification)
+
+    # Test Item 3
+    arg_verification = [table_name, dynamodb_key3, fixity_ready_expr_attr_values, fixity_ready_update_expr, 'ALL_NEW']
+    @mock_dynamodb.expect(:update_item, mock_resp, arg_verification)
+    mock_resp.expect(:items, items3)
+    mock_resp.expect(:items, items3)
+    mock_resp.expect(:items, items3)
+    s3_args_verification = [Settings.aws.s3.backup_bucket, key3, 'bytes=0-16777216']
+    object_part.expect(:body, IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r'))
+    @mock_s3.expect(:get_object_with_byte_range, object_part, s3_args_verification)
+    fixity_mismatch_expr_attr_values = {
+      ':mismatch' => Settings.aws.dynamodb.true,
+      ':fixity_status' => Settings.aws.dynamodb.done,
+      ':fixity_outcome' => Settings.aws.dynamodb.mismatch,
+      ':calculated_checksum' => checksum,
+      ':timestamp' => Time.new(2).getutc.iso8601(3)
+    }
+    fixity_mismatch_update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
+                      "#{Settings.aws.dynamodb.fixity_outcome} = :fixity_outcome, " \
+                      "#{Settings.aws.dynamodb.calculated_checksum} = :calculated_checksum, " \
+                      "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
+                      "#{Settings.aws.dynamodb.mismatch} = :mismatch"
+    args_verification = [table_name, dynamodb_key3, fixity_mismatch_expr_attr_values, fixity_mismatch_update_expr]
+    @mock_dynamodb.expect(:update_item, [], args_verification)
+    args_verification = [file_id3.to_i, checksum, true, Settings.aws.sqs.success]
+    @mock_medusa_sqs.expect(:send_medusa_message, [], args_verification)
+
+    # Run test
+    Time.stub(:now, Time.new(2)) do
+      @fixity.run_fixity_from_csv('test-fixity.csv')
+      assert_mock(@mock_dynamodb)
+      assert_mock(@mock_s3)
+      assert_mock(@mock_medusa_sqs)
+    end
   end
 
   def test_get_fixity_item
-    item = {'TestItem' => 'TestValue' }
+    item = { 'TestItem' => 'TestValue' }
     query_resp = Object.new
     def query_resp.items =  [{'TestItem' => 'TestValue' }]
     def query_resp.empty? =  false
@@ -258,7 +382,7 @@ class TestFixity < Minitest::Test
     update_expr = "SET #{Settings.aws.dynamodb.fixity_status} = :fixity_status, "\
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp "\
                   "REMOVE #{Settings.aws.dynamodb.fixity_ready}"
-    args_verification = [table_name, key, expr_attr_vals, update_expr]
+    args_verification = [table_name, key, expr_attr_vals, update_expr, 'ALL_NEW']
     @mock_dynamodb.expect(:update_item, [], args_verification)
     Time.stub(:now, Time.new(2)) do
       @fixity.update_fixity_ready(test_key)
@@ -269,7 +393,6 @@ class TestFixity < Minitest::Test
   def test_calculate_checksum
     object_part = Object.new
     def object_part.body = IO.new(IO.sysopen("#{ENV['RUBY_HOME']}/.ruby-version", 'r'), 'r')
-    mock_dynamodb = Minitest::Mock.new
     test_key = '123/test.tst'
     file_size = 12345
     args_verification = [Settings.aws.s3.backup_bucket, test_key, 'bytes=0-16777216']
@@ -320,7 +443,7 @@ class TestFixity < Minitest::Test
     dynamodb_args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values, update_expr]
     @mock_dynamodb.expect(:update_item_with_names, [], dynamodb_args_verification)
     Time.stub(:now, Time.new(2)) do
-      checksum, error_message = @fixity.calculate_checksum(test_key, 123, file_size)
+      checksum, _error_message = @fixity.calculate_checksum(test_key, 123, file_size)
       assert_mock(@mock_s3)
       assert_mock(@mock_dynamodb)
       assert_nil(checksum)
