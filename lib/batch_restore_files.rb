@@ -42,8 +42,9 @@ class BatchRestoreFiles
     batch_continue = true
     while batch_continue
       id_iterator, batch_continue = get_id_iterator(id, max_id, batch_count)
-      file_directories, medusa_files = get_files_in_batches(id, id_iterator)
+      file_directories, medusa_files, size = get_files_in_batches(id, id_iterator)
       batch_count += medusa_files.size
+      batch_size += size
       id = id_iterator
       # next if (file_directories.nil? || file_directories.empty?) || (medusa_files.nil? || medusa_files.empty?)
       directories = get_path_hash(file_directories)
@@ -57,20 +58,30 @@ class BatchRestoreFiles
     time_end = Time.now
     duration = time_end - time_start
 
-    FixityConstants::LOGGER.info("Get batch duration to process #{batch_count} files: #{duration}")
+    log_message = "Get batch duration to process #{batch_count} of size: #{batch_size} files: #{duration}"
+    FixityConstants::LOGGER.info(log_message)
     etag = put_manifest(manifest)
     send_batch_job(manifest, etag)
   end
 
   def batch_restore_from_list(list)
     # TODO: add test
+    time_start = Time.now
+    batch_size = 0
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
-    file_directories, medusa_files = get_batch_from_list(list)
+    file_directories, medusa_files, size = get_batch_from_list(list)
+    batch_size += size
     directories = get_path_hash(file_directories)
     batch = generate_manifest(manifest, medusa_files, directories)
 
     put_requests = @dynamodb.get_put_requests(batch)
     @dynamodb.batch_write_items(Settings.aws.dynamodb.fixity_table_name, put_requests)
+
+    time_end = Time.now
+    duration = time_end - time_start
+
+    log_message = "Get batch duration to process #{list.size} of size: #{batch_size} files: #{duration}"
+    FixityConstants::LOGGER.info(log_message)
 
     etag = put_manifest(manifest)
     send_batch_job(manifest, etag)
@@ -119,6 +130,7 @@ class BatchRestoreFiles
   def get_files_in_batches(id, id_iterator)
     # TODO: add batch size as class variable to keep track of file sizes
     # expand to take batch size into account
+    batch_size = 0
     medusa_files = []
     file_directories = []
     file_result = @medusa_db.exec_params('SELECT * FROM cfs_files WHERE id>$1 AND  id<=$2', [{ value: id.to_s },
@@ -129,12 +141,12 @@ class BatchRestoreFiles
       file_id = file_row['id']
       directory_id = file_row['cfs_directory_id']
       name = file_row['name']
-      _size = file_row['size'].to_i
+      batch_size += file_row['size'].to_i
       initial_checksum = file_row['md5_sum']
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    [file_directories.uniq, medusa_files]
+    [file_directories.uniq, medusa_files, batch_size]
   end
 
   def get_path(directory_id, path)
@@ -219,6 +231,7 @@ class BatchRestoreFiles
   end
 
   def get_batch_from_list(list)
+    batch_size = 0
     medusa_files = []
     file_directories = []
     list.each do |id|
@@ -230,12 +243,12 @@ class BatchRestoreFiles
       file_id = file_row['id']
       directory_id = file_row['cfs_directory_id']
       name = file_row['name']
-      _size = file_row['size'].to_i
+      batch_size += file_row['size'].to_i
       initial_checksum = file_row['md5_sum']
       file_directories.push(directory_id)
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
-    [file_directories.uniq, medusa_files]
+    [file_directories.uniq, medusa_files, batch_size]
   end
 
   def restore_item(batch_item)

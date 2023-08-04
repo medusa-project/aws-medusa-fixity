@@ -16,6 +16,127 @@ class TestBatchRestoreFiles < Minitest::Test
     @mock_db = Minitest::Mock.new
     @batch_restore_files = BatchRestoreFiles.new(@mock_s3, @mock_dynamodb, @mock_s3_control, @mock_db)
   end
+
+  def test_batch_restore
+    medusa_db_id_table = Settings.aws.dynamodb.medusa_db_id_table_name
+    manifest = 'manifest-0002-01-01-00:00.csv'
+    etag = '98765432109876543210987654321021'
+
+    # get medusa id
+    id = '1'
+    expr_attr_vals = { ":file_type" => Settings.aws.dynamodb.current_id, }
+    key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :file_type"
+    args_verification = [medusa_db_id_table, 1, expr_attr_vals, key_cond_expr]
+    mock_query_resp = Minitest::Mock.new
+    items = [{Settings.aws.dynamodb.file_id => id}]
+    mock_query_resp.expect(:nil?, false)
+    # return items when checking items empty?
+    mock_query_resp.expect(:items, items)
+    mock_query_resp.expect(:items, items)
+    @mock_dynamodb.expect(:query, mock_query_resp, args_verification)
+
+    # get max id
+    id_iterator = '2'
+    sql = "SELECT MAX(id) FROM cfs_files"
+    @mock_db.expect(:exec, [{"max" => id_iterator}], [sql])
+
+    # get files in batches
+    sql = "SELECT * FROM cfs_files WHERE id>$1 AND  id<=$2"
+    files_ret = [{"id" => "1", "name" => "test", "size" => 123456, "md5_sum" => "12345678901234567890123456789012", "cfs_directory_id" => '3'},
+                 {"id" => "2", "name" => "test1", "size" => 234567, "md5_sum" => "23456789012345678901234567890123", "cfs_directory_id" => '6'}
+    ]
+    @mock_db.expect(:exec_params, files_ret, [sql, [{:value =>id.to_s}, {:value =>id_iterator.to_s}]])
+
+    # get path hash
+    sql = "SELECT * FROM cfs_directories WHERE id=$1"
+    row1 = [{"path" => "6", "parent_id" => '5', "parent_type" => "CfsDirectory"}]
+    row2 = [{"path" => "5", "parent_id" => '4', "parent_type" => "CfsDirectory"}]
+    row3 = [{"path" => "4", "parent_id" => '3', "parent_type" => "FileGroup"}]
+    row4 = [{"path" => "3", "parent_id" => '2', "parent_type" => "CfsDirectory"}]
+    row5 = [{"path" => "2", "parent_id" => '1', "parent_type" => "CfsDirectory"}]
+    row6 = [{"path" => "1", "parent_id" => nil, "parent_type" => nil}]
+    @mock_db.expect(:exec_params, row4, [sql, [{:value =>'3'}]])
+    @mock_db.expect(:exec_params, row5, [sql, [{:value =>'2'}]])
+    @mock_db.expect(:exec_params, row6, [sql, [{:value =>'1'}]])
+    @mock_db.expect(:exec_params, row1, [sql, [{:value =>'6'}]])
+    @mock_db.expect(:exec_params, row2, [sql, [{:value =>'5'}]])
+    @mock_db.expect(:exec_params, row3, [sql, [{:value =>'4'}]])
+
+    # generate manifest
+
+    # get_put_requests
+    test_batch_item1 = {
+      Settings.aws.dynamodb.s3_key => "1/2/3/test",
+      Settings.aws.dynamodb.file_id => "1",
+      Settings.aws.dynamodb.initial_checksum => "12345678901234567890123456789012",
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3)
+    }
+    test_batch_item2 = {
+      Settings.aws.dynamodb.s3_key => "4/5/6/test1",
+      Settings.aws.dynamodb.file_id => "2",
+      Settings.aws.dynamodb.initial_checksum => "23456789012345678901234567890123",
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3)
+    }
+    test_batch = [test_batch_item1, test_batch_item2]
+
+    put_request = [{ put_request: { item: test_batch_item1 } }, { put_request: { item: test_batch_item2 } }]
+    @mock_dynamodb.expect(:get_put_requests, put_request, [test_batch])
+
+    # batch write item
+    @mock_dynamodb.expect(:batch_write_items, [], [Settings.aws.dynamodb.fixity_table_name, put_request])
+
+    # put medusa id
+    item = {
+      Settings.aws.dynamodb.id_type => Settings.aws.dynamodb.current_id,
+      Settings.aws.dynamodb.file_id => '2'.to_s
+    }
+    args_verification = [medusa_db_id_table, item]
+    @mock_dynamodb.expect(:put_item, [], args_verification)
+
+    # put manifest
+    mock_s3_resp = Minitest::Mock.new
+    mock_s3_resp.expect(:etag, etag)
+    @mock_s3.expect(:put_object, mock_s3_resp, [File, Settings.aws.s3.backup_bucket, "fixity/#{manifest}"])
+
+    # send batch job
+    # get request token
+    limit = 1
+    expr_attr_values = { ":request_token" => Settings.aws.dynamodb.current_request_token,}
+    key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :request_token"
+    request_toke_exp = 123
+    query_resp = Minitest::Mock.new
+    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => request_toke_exp.to_s}])
+    query_resp.expect(:nil?, false)
+    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => request_toke_exp.to_s}])
+    args_validation = [medusa_db_id_table, limit, expr_attr_values, key_cond_expr]
+    @mock_dynamodb.expect(:query, query_resp, args_validation)
+
+    job_id = 'job-123456789'
+    mock_resp = Minitest::Mock.new
+    mock_resp.expect(:job_id, job_id)
+    @mock_s3_control.expect(:create_job, mock_resp, [manifest, request_toke_exp+1, etag])
+
+    # put job id
+    args_verification = [Settings.aws.dynamodb.batch_job_ids_table_name, { Settings.aws.dynamodb.job_id => job_id }]
+    @mock_dynamodb.expect(:put_item, [], args_verification)
+
+    # put request token
+    args_verification = [medusa_db_id_table, { Settings.aws.dynamodb.id_type => Settings.aws.dynamodb.current_request_token,
+                                               Settings.aws.dynamodb.file_id => (request_toke_exp+1).to_s}]
+    @mock_dynamodb.expect(:put_item, [], args_verification)
+
+    # run test
+    Time.stub(:now, Time.new(2)) do
+      @batch_restore_files.batch_restore
+      assert_mock(@mock_dynamodb)
+      assert_mock(@mock_db)
+      assert_mock(@mock_s3)
+      assert_mock(@mock_s3_control)
+    end
+  end
+
   # def test_get_batch_restore_from_list
   #
   # end
@@ -24,12 +145,16 @@ class TestBatchRestoreFiles < Minitest::Test
     expr_attr_vals = { ":file_type" => Settings.aws.dynamodb.current_id, }
     key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :file_type"
     args_verification = [Settings.aws.dynamodb.medusa_db_id_table_name, 1, expr_attr_vals, key_cond_expr]
-    query_resp = Object.new
-    def query_resp.items = [{Settings.aws.dynamodb.file_id => "12345689"}]
-    @mock_dynamodb.expect(:query, query_resp, args_verification)
+    mock_query_resp = Minitest::Mock.new
+    items = [{Settings.aws.dynamodb.file_id => "12345689"}]
+    mock_query_resp.expect(:nil?, false)
+    # return items when checking items empty?
+    mock_query_resp.expect(:items, items)
+    mock_query_resp.expect(:items, items)
+    @mock_dynamodb.expect(:query, mock_query_resp, args_verification)
     medusa_id = @batch_restore_files.get_medusa_id
     assert_mock(@mock_dynamodb)
-    assert_equal(12345689, medusa_id)
+    assert_equal(12_345_689, medusa_id)
   end
 
   def test_get_max_id
@@ -117,18 +242,19 @@ class TestBatchRestoreFiles < Minitest::Test
                  {"id" => "3", "name" => "test2", "size" => 345678, "md5_sum" => "34567890123456789012345678901234", "cfs_directory_id" => 2}
     ]
     @mock_db.expect(:exec_params, files_ret, [sql, [{:value =>id.to_s}, {:value =>id_iterator.to_s}]])
-    file_dirs_act, medusa_files_act = @batch_restore_files.get_files_in_batches(id, id_iterator)
+    file_dirs_act, medusa_files_act, size_act = @batch_restore_files.get_files_in_batches(id, id_iterator)
 
     m_file_1 = MedusaFile.new("test", "1", 1, "12345678901234567890123456789012")
     m_file_2 = MedusaFile.new("test1", "2", 1, "23456789012345678901234567890123")
     m_file_3 = MedusaFile.new("test2", "3", 2, "34567890123456789012345678901234")
     medusa_files_exp = [m_file_1, m_file_2, m_file_3]
-    medusa_files_act = medusa_files_act
     file_dirs_exp = [1,2]
+    size_exp = 123456 + 234567 + 345678
 
     assert_mock(@mock_db)
     assert_equal(file_dirs_exp, file_dirs_act)
     assert_equal(medusa_files_exp, medusa_files_act)
+    assert_equal(size_exp, size_act)
   end
 
   def test_get_path
@@ -402,11 +528,14 @@ class TestBatchRestoreFiles < Minitest::Test
     medusa_item_2 = MedusaFile.new(name_2, id_2, dir_2, checksum_2)
     medusa_item_3 = MedusaFile.new(name_3, id_3, dir_3, checksum_3)
     medusa_files_exp = [medusa_item_1, medusa_item_2, medusa_item_3]
-    file_dirs_exp = [1,2]
-    file_dirs_act , medusa_files_act = @batch_restore_files.get_batch_from_list(list)
+    file_dirs_exp = [1, 2]
+    size_exp = size_1 + size_2 + size_3
+
+    file_dirs_act, medusa_files_act, size_act = @batch_restore_files.get_batch_from_list(list)
     assert_mock(@mock_db)
     assert_equal(file_dirs_exp, file_dirs_act)
     assert_equal(medusa_files_exp, medusa_files_act)
+    assert_equal(size_exp, size_act)
   end
 
   def test_restore_item
@@ -458,9 +587,9 @@ class TestBatchRestoreFiles < Minitest::Test
     key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :request_token"
     request_toke_exp = 123
     query_resp = Minitest::Mock.new
-    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => "#{request_toke_exp}"}])
+    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => request_toke_exp.to_s}])
     query_resp.expect(:nil?, false)
-    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => "#{request_toke_exp}"}])
+    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => request_toke_exp.to_s}])
     args_validation = [table_name, limit, expr_attr_values, key_cond_expr]
     @mock_dynamodb.expect(:query, query_resp, args_validation)
     request_token_act = @batch_restore_files.get_request_token
