@@ -6,7 +6,6 @@ require 'json'
 require_relative '../lib/batch_restore_files'
 
 class TestBatchRestoreFiles < Minitest::Test
-  #TODO add testing for special character handling
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", "test"))
 
   def setup
@@ -137,9 +136,99 @@ class TestBatchRestoreFiles < Minitest::Test
     end
   end
 
-  # def test_get_batch_restore_from_list
-  #
-  # end
+  def test_get_batch_restore_from_list
+    # get batch from list
+    # list item 1
+    id1 = 1
+    sql = 'SELECT * FROM cfs_files WHERE id=$1'
+    files_ret = [{"id" => id1.to_s, "name" => "test", "size" => 123456, "md5_sum" => "12345678901234567890123456789012", "cfs_directory_id" => '3'}]
+    @mock_db.expect(:exec_params, files_ret, [sql, [value: id1.to_s]])
+
+    id2 = 2
+    sql = 'SELECT * FROM cfs_files WHERE id=$1'
+    files_ret = [{"id" => id2.to_s, "name" => "test1", "size" => 234567, "md5_sum" => "23456789012345678901234567890123", "cfs_directory_id" => '6'}]
+    @mock_db.expect(:exec_params, files_ret, [sql, [value: id2.to_s]])
+
+    # get path hash
+    sql = "SELECT * FROM cfs_directories WHERE id=$1"
+    row1 = [{"path" => "6", "parent_id" => '5', "parent_type" => "CfsDirectory"}]
+    row2 = [{"path" => "5", "parent_id" => '4', "parent_type" => "CfsDirectory"}]
+    row3 = [{"path" => "4", "parent_id" => '3', "parent_type" => "FileGroup"}]
+    row4 = [{"path" => "3", "parent_id" => '2', "parent_type" => "CfsDirectory"}]
+    row5 = [{"path" => "2", "parent_id" => '1', "parent_type" => "CfsDirectory"}]
+    row6 = [{"path" => "1", "parent_id" => nil, "parent_type" => nil}]
+    @mock_db.expect(:exec_params, row4, [sql, [{:value =>'3'}]])
+    @mock_db.expect(:exec_params, row5, [sql, [{:value =>'2'}]])
+    @mock_db.expect(:exec_params, row6, [sql, [{:value =>'1'}]])
+    @mock_db.expect(:exec_params, row1, [sql, [{:value =>'6'}]])
+    @mock_db.expect(:exec_params, row2, [sql, [{:value =>'5'}]])
+    @mock_db.expect(:exec_params, row3, [sql, [{:value =>'4'}]])
+
+    # generate manifest
+    # get put requests
+    test_batch_item1 = {
+      Settings.aws.dynamodb.s3_key => "1/2/3/test",
+      Settings.aws.dynamodb.file_id => "1",
+      Settings.aws.dynamodb.initial_checksum => "12345678901234567890123456789012",
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3)
+    }
+    test_batch_item2 = {
+      Settings.aws.dynamodb.s3_key => "4/5/6/test1",
+      Settings.aws.dynamodb.file_id => "2",
+      Settings.aws.dynamodb.initial_checksum => "23456789012345678901234567890123",
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3)
+    }
+    test_batch = [test_batch_item1, test_batch_item2]
+
+    put_request = [{ put_request: { item: test_batch_item1 } }, { put_request: { item: test_batch_item2 } }]
+    @mock_dynamodb.expect(:get_put_requests, put_request, [test_batch])
+
+    # batch write item
+    @mock_dynamodb.expect(:batch_write_items, [], [Settings.aws.dynamodb.fixity_table_name, put_request])
+
+    # put manifest
+    manifest = 'manifest-0002-01-01-00:00.csv'
+    etag = '98765432109876543210987654321021'
+    mock_s3_resp = Minitest::Mock.new
+    mock_s3_resp.expect(:etag, etag)
+    @mock_s3.expect(:put_object, mock_s3_resp, [File, Settings.aws.s3.backup_bucket, "fixity/#{manifest}"])
+
+    # send job
+    medusa_db_id_table = Settings.aws.dynamodb.medusa_db_id_table_name
+    limit = 1
+    expr_attr_values = { ":request_token" => Settings.aws.dynamodb.current_request_token,}
+    key_cond_expr = "#{Settings.aws.dynamodb.id_type} = :request_token"
+    request_toke_exp = 123
+    query_resp = Minitest::Mock.new
+    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => request_toke_exp.to_s}])
+    query_resp.expect(:nil?, false)
+    query_resp.expect(:items, [{Settings.aws.dynamodb.file_id => request_toke_exp.to_s}])
+    args_validation = [medusa_db_id_table, limit, expr_attr_values, key_cond_expr]
+    @mock_dynamodb.expect(:query, query_resp, args_validation)
+
+    job_id = 'job-123456789'
+    mock_resp = Minitest::Mock.new
+    mock_resp.expect(:job_id, job_id)
+    @mock_s3_control.expect(:create_job, mock_resp, [manifest, request_toke_exp+1, etag])
+
+    # put job id
+    args_verification = [Settings.aws.dynamodb.batch_job_ids_table_name, { Settings.aws.dynamodb.job_id => job_id }]
+    @mock_dynamodb.expect(:put_item, [], args_verification)
+
+    # put request token
+    args_verification = [medusa_db_id_table, { Settings.aws.dynamodb.id_type => Settings.aws.dynamodb.current_request_token,
+                                               Settings.aws.dynamodb.file_id => (request_toke_exp+1).to_s}]
+    @mock_dynamodb.expect(:put_item, [], args_verification)
+    Time.stub(:now, Time.new(2)) do
+      @batch_restore_files.batch_restore_from_list([1, 2])
+      assert_mock(@mock_dynamodb)
+      assert_mock(@mock_db)
+      assert_mock(@mock_s3)
+      assert_mock(@mock_s3_control)
+    end
+  end
 
   def test_get_medusa_id
     expr_attr_vals = { ":file_type" => Settings.aws.dynamodb.current_id, }
@@ -172,52 +261,52 @@ class TestBatchRestoreFiles < Minitest::Test
   end
 
   def test_get_id_iterator
-    #test when id + 1000 less than max id and less than remaining batch count
+    # test when id + 1000 less than max id and less than remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(1, 5000, 0)
     assert_equal(true, continue)
     assert_equal(1001, id_itr)
 
-    #test when id + 1000 equal to max id and less than remaining batch count
+    # test when id + 1000 equal to max id and less than remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(0, 1000, 0)
     assert_equal(false, continue)
     assert_equal(1000, id_itr)
 
-    #test when id + 1000 greater than max id and less than remaining batch count
+    # test when id + 1000 greater than max id and less than remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(150, 1000, 0)
     assert_equal(false, continue)
     assert_equal(1000, id_itr)
 
-    #test when id + 1000 less than max id and greater than remaining batch count
+    # test when id + 1000 less than max id and greater than remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(150, 400000, 19000)
     assert_equal(false, continue)
     assert_equal(1150, id_itr)
 
-    #test when id + 1000 less than max id and equal to remaining batch count
+    # test when id + 1000 less than max id and equal to remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(0, 400000, 19000)
     assert_equal(false, continue)
     assert_equal(1000, id_itr)
 
-    #test when id + 1000 less than max id and greater than remaining batch count
+    # test when id + 1000 less than max id and greater than remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(2150, 400000, 19000)
     assert_equal(false, continue)
     assert_equal(3150, id_itr)
 
-    #test when id + 1000 equal to max id and greater than remaining batch count
+    # test when id + 1000 equal to max id and greater than remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(2000, 3000, 19500)
     assert_equal(false, continue)
     assert_equal(3000, id_itr)
 
-    #test when id + 1000 greater than max id and greater than remaining batch count
+    # test when id + 1000 greater than max id and greater than remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(1500, 2000, 19000)
     assert_equal(false, continue)
     assert_equal(2000, id_itr)
 
-    #test when id + 1000 greater than max id and equal to remaining batch count
+    # test when id + 1000 greater than max id and equal to remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(1000, 1000, 18000)
     assert_equal(false, continue)
     assert_equal(1000, id_itr)
 
-    #test when id + 1000 equal to max id and equal to remaining batch count
+    # test when id + 1000 equal to max id and equal to remaining batch count
     id_itr, continue = @batch_restore_files.get_id_iterator(0, 1000, 19000)
     assert_equal(false, continue)
     assert_equal(1000, id_itr)
@@ -557,7 +646,28 @@ class TestBatchRestoreFiles < Minitest::Test
       assert_mock(@mock_s3)
       assert_mock(@mock_dynamodb)
     end
+  end
 
+  def test_restore_item_special_characters
+    id = "123"
+    key_unesc = "123/%24test.tst"
+    key = "123/$test.tst"
+    checksum = "12345678901234567890123456789012"
+    batch_item = BatchItem.new(key_unesc, id, checksum)
+    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key, id] )
+    test_item = {
+      Settings.aws.dynamodb.s3_key => batch_item.s3_key,
+      Settings.aws.dynamodb.file_id => batch_item.file_id,
+      Settings.aws.dynamodb.initial_checksum => batch_item.initial_checksum,
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
+    }
+    @mock_dynamodb.expect(:put_item, [], [Settings.aws.dynamodb.fixity_table_name, test_item])
+    Time.stub(:now, Time.new(1)) do
+      @batch_restore_files.restore_item(batch_item)
+      assert_mock(@mock_s3)
+      assert_mock(@mock_dynamodb)
+    end
   end
 
   def test_send_batch_job

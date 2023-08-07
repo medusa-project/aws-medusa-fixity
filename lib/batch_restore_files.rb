@@ -26,7 +26,6 @@ class BatchRestoreFiles
   end
 
   def batch_restore
-    # TODO: add test
     time_start = Time.now
     id = get_medusa_id
     return nil if id.nil?
@@ -65,7 +64,6 @@ class BatchRestoreFiles
   end
 
   def batch_restore_from_list(list)
-    # TODO: add test
     time_start = Time.now
     batch_size = 0
     manifest = "manifest-#{Time.now.strftime('%F-%H:%M')}.csv"
@@ -129,7 +127,6 @@ class BatchRestoreFiles
 
   def get_files_in_batches(id, id_iterator)
     # TODO: add batch size as class variable to keep track of file sizes
-    # expand to take batch size into account
     batch_size = 0
     medusa_files = []
     file_directories = []
