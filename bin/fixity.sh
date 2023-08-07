@@ -1,0 +1,26 @@
+#!/bin/bash
+
+source /home/ec2-user/aws-medusa-fixity/bin/set-vars.sh
+
+PID_FILE="$TMP_HOME"/start_fixity.pid
+start() {
+       touch "$PID_FILE"
+       source "$BIN_HOME"/start_fixity.sh &
+       PID=$!
+       echo "$PID" > "$PID_FILE"
+}
+stop () {
+      kill -9 "$(<"$PID_FILE")"
+}
+
+case $1 in
+    start)
+       start
+       ;;
+    stop)
+       stop
+       ;;
+     *)
+       echo "usage: fixity {start|stop}" ;;
+ esac
+ exit 0
