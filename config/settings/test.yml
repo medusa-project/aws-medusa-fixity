@@ -1,0 +1,15 @@
+aws:
+    s3:
+        backup_bucket: "medusa-test-main-backup"
+        backup_bucket_arn: "arn:aws:s3:::medusa-test-main-backup"
+        batch_arn: "arn:aws:iam::721945215539:role/fixity-test-batch-restore-role"
+        batch_prefix: "fixity/BatchRestoreReports"
+    sqs:
+        medusa_queue_url: "https://sqs.us-test-2.amazonaws.com/123456789123/fixity-to-medusa-test"
+        s3_queue_url: "https://sqs.us-test-2.amazonaws.com/123456789123/s3-to-fixity-test"
+    dynamodb:
+        fixity_table_name: "FixityTestTable"
+        batch_job_ids_table_name: "FixityTestBatchJobsTable"
+        restoration_errors_table_name : "FixityTestRestorationErrorsTable"
+        medusa_db_id_table_name: "FixityTestMedusaDBIdTable"
+        index_name: "FixityProcessingQueue"

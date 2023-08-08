@@ -17,5 +17,17 @@
       }
     },
     "log_stream_name": "fixity-demo-log"
+  },
+  "metrics": {
+    "append_dimensions": {
+      "InstanceId":"${aws:InstanceId}"
+    },
+    "metrics_collected": {
+      "mem": {
+        "measurement": [
+          "available_percent"
+        ]
+      }
+    }
   }
 }

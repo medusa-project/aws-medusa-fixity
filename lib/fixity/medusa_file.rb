@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class MedusaFile
+  attr_accessor :name, :file_id, :directory_id, :initial_checksum
+
   def initialize(name, file_id, directory_id, initial_checksum)
     @name = name
     @file_id = file_id
@@ -8,19 +10,8 @@ class MedusaFile
     @initial_checksum = initial_checksum
   end
 
-  def name
-    @name
-  end
-
-  def file_id
-    @file_id
-  end
-
-  def directory_id
-    @directory_id
-  end
-
-  def initial_checksum
-    @initial_checksum
+  def ==(other)
+    # return true if self is equal to other_object, false otherwise
+    name == other.name && file_id == other.file_id && directory_id == other.directory_id && initial_checksum == other.initial_checksum
   end
 end
