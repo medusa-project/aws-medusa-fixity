@@ -4,6 +4,7 @@ require 'aws-sdk-dynamodb'
 require 'config'
 
 require_relative 'fixity/fixity_constants'
+require_relative 'fixity/fixity_utils'
 require_relative 'fixity/batch_item'
 require_relative 'fixity/dynamodb'
 require_relative 'fixity/s3'
@@ -66,6 +67,7 @@ class RestorationEvent
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, "\
                       "#{Settings.aws.dynamodb.file_size} = :file_size"
     @dynamodb.update_item(table_name, key, expr_attr_values, update_expr)
+    FixityUtils.increment_fixity_count
   end
 
   def handle_deleted(s3_key, file_size)
@@ -100,5 +102,6 @@ class RestorationEvent
     item = BatchItem.new(s3_key, file_id, initial_checksum)
     batch_restore_files = BatchRestoreFiles.new(@s3, @dynamodb)
     batch_restore_files.restore_item(item)
+    FixityUtils.decrement_fixity_count
   end
 end
