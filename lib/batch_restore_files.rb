@@ -13,7 +13,7 @@ require_relative 'fixity/s3'
 require_relative 'fixity/s3_control'
 
 class BatchRestoreFiles
-  MAX_BATCH_COUNT = 10000
+  MAX_BATCH_COUNT = 20000
   MAX_BATCH_SIZE = 16 * 1024**2 * MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   attr_accessor :s3, :s3_control, :dynamodb, :medusa_db
