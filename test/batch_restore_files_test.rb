@@ -261,55 +261,79 @@ class TestBatchRestoreFiles < Minitest::Test
   end
 
   def test_get_id_iterator
+    max_batch_count = @batch_restore_files.max_batch_count
+
     # test when id + 1000 less than max id and less than remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(1, 5000, 0)
+    batch_count = max_batch_count - 5000
+    id = (batch_count - 1000) - 50
+    max_id = id + 1000 + 5
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(true, continue)
-    assert_equal(1001, id_itr)
+    assert_equal(id + 1000, id_itr)
 
     # test when id + 1000 equal to max id and less than remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(0, 1000, 0)
+    batch_count = max_batch_count - 5000
+    id = batch_count - 1000 - 50
+    max_id = id + 1000
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(1000, id_itr)
+    assert_equal(id + 1000, id_itr)
 
     # test when id + 1000 greater than max id and less than remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(150, 1000, 0)
+    batch_count = max_batch_count - 5000
+    id = batch_count - 1000 - 50
+    max_id = id + 900
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(1000, id_itr)
+    assert_equal(max_id, id_itr)
 
     # test when id + 1000 less than max id and greater than remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(150, 400000, 19000)
+    batch_count = max_batch_count - 950
+    id = batch_count
+    max_id = id + 2000
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(1150, id_itr)
+    assert_equal(max_batch_count, id_itr)
 
     # test when id + 1000 less than max id and equal to remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(0, 400000, 19000)
+    batch_count = max_batch_count - 1000
+    id = batch_count
+    max_id = id + 2000
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(1000, id_itr)
-
-    # test when id + 1000 less than max id and greater than remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(2150, 400000, 19000)
-    assert_equal(false, continue)
-    assert_equal(3150, id_itr)
+    assert_equal(max_batch_count, id_itr)
 
     # test when id + 1000 equal to max id and greater than remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(2000, 3000, 19500)
+    batch_count = max_batch_count - 500
+    id = batch_count
+    max_id = id + 1000
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(3000, id_itr)
+    assert_equal(max_id, id_itr)
 
     # test when id + 1000 greater than max id and greater than remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(1500, 2000, 19000)
+    batch_count = max_batch_count - 300
+    id = batch_count
+    max_id = id + 500
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(2000, id_itr)
+    assert_equal(max_id, id_itr)
 
     # test when id + 1000 greater than max id and equal to remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(1000, 1000, 18000)
+    batch_count = max_batch_count - 1000
+    id = batch_count
+    max_id = id + 500
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(1000, id_itr)
+    assert_equal(max_id, id_itr)
 
     # test when id + 1000 equal to max id and equal to remaining batch count
-    id_itr, continue = @batch_restore_files.get_id_iterator(0, 1000, 19000)
+    batch_count = max_batch_count - 1000
+    id = batch_count
+    max_id = id + 1000
+    id_itr, continue = @batch_restore_files.get_id_iterator(id, max_id, batch_count)
     assert_equal(false, continue)
-    assert_equal(1000, id_itr)
+    assert_equal(max_id, id_itr)
   end
 
   def test_get_file

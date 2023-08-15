@@ -289,4 +289,8 @@ class BatchRestoreFiles
     item = { Settings.aws.dynamodb.job_id => job_id }
     @dynamodb.put_item(table_name, item)
   end
+
+  def max_batch_count
+    MAX_BATCH_COUNT
+  end
 end
