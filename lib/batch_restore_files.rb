@@ -223,7 +223,7 @@ class BatchRestoreFiles
   def put_manifest(manifest)
     body = File.new(manifest)
     key = "fixity/#{manifest}"
-    s3_resp = @s3.put_object(body, Settings.aws.s3.backup_bucket, key)
+    s3_resp = @s3.put_object(body, Settings.aws.s3.fixity_bucket, key)
     s3_resp.etag
   end
 

@@ -94,7 +94,7 @@ class ProcessBatchReports
 
   def parse_completion_report(manifest_key)
     response_target = './report.csv'
-    @s3.get_object_to_response_target(Settings.aws.s3.backup_bucket, manifest_key, response_target)
+    @s3.get_object_to_response_target(Settings.aws.s3.fixity_bucket, manifest_key, response_target)
     batch_completion_table = CSV.new(File.read('report.csv'))
     error_batch = []
     batch_completion_table.each do |row|
