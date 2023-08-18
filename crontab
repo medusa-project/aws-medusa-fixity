@@ -6,5 +6,3 @@
 
 #check for messages in the queue every minute
 * * * * * /home/ec2-user/aws-medusa-fixity/bin/fetch_responses.sh
-
-

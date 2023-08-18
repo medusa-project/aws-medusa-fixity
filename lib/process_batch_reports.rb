@@ -32,7 +32,11 @@ class ProcessBatchReports
     job_info = get_job_info(job_id)
     return nil if job_info.nil?
 
-    return if get_job_status(job_info) != Settings.aws.s3.complete
+    job_status = get_job_status(job_info)
+
+    remove_job_id(job_id) and return if job_status == Settings.aws.s3.failed
+
+    return if job_status != Settings.aws.s3.complete
 
     get_duration(job_info)
     job_failures = get_tasks_failed(job_info)
