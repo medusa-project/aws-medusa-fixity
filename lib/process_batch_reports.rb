@@ -34,7 +34,12 @@ class ProcessBatchReports
 
     job_status = get_job_status(job_info)
 
-    remove_job_id(job_id) and return if job_status == Settings.aws.s3.failed
+    if job_status == Settings.aws.s3.failed
+      failed_message = "Batch job: #{job_id} failed"
+      FixityConstants::LOGGER.error(failed_message)
+      remove_job_id(job_id)
+      return
+    end
 
     return if job_status != Settings.aws.s3.complete
 
