@@ -11,7 +11,7 @@ Fixity implementation for Medusa
 ## Development
 
 ## Testing
-To run all test use `rake test`
+To run all tests use `rake test`
 
 To run a specific test use `rake test TEST=test/{test_class.rb}` 
 

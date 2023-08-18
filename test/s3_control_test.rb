@@ -27,7 +27,7 @@ class TestS3Control < Minitest::Test
     token = 123
     etag = "12345678901234567890123456789012"
     operation = { s3_initiate_restore_object: { expiration_in_days: 1, glacier_job_tier: "BULK",} }
-    report = { bucket: Settings.aws.s3.backup_bucket_arn, format: "Report_CSV_20180820", enabled: true, prefix: Settings.aws.s3.batch_prefix, report_scope: "FailedTasksOnly",}
+    report = { bucket: Settings.aws.s3.fixity_bucket_arn, format: "Report_CSV_20180820", enabled: true, prefix: Settings.aws.s3.batch_prefix, report_scope: "FailedTasksOnly",}
     args = {
       account_id: account_id,
       confirmation_required: false,
@@ -35,7 +35,7 @@ class TestS3Control < Minitest::Test
       report: report,
       client_request_token: "#{token}", # required
       manifest: { spec: { format: "S3BatchOperations_CSV_20180820", fields: %w[Bucket Key],},
-                  location: { object_arn: "#{Settings.aws.s3.backup_bucket_arn}/fixity/#{manifest}", etag: etag,},},
+                  location: { object_arn: "#{Settings.aws.s3.fixity_bucket}/fixity/#{manifest}", etag: etag,},},
       priority: 10,
       role_arn: Settings.aws.s3.batch_arn, # required
     }

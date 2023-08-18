@@ -97,7 +97,7 @@ class TestBatchRestoreFiles < Minitest::Test
     # put manifest
     mock_s3_resp = Minitest::Mock.new
     mock_s3_resp.expect(:etag, etag)
-    @mock_s3.expect(:put_object, mock_s3_resp, [File, Settings.aws.s3.backup_bucket, "fixity/#{manifest}"])
+    @mock_s3.expect(:put_object, mock_s3_resp, [File, Settings.aws.s3.fixity_bucket, "fixity/#{manifest}"])
 
     # send batch job
     # get request token
@@ -193,7 +193,7 @@ class TestBatchRestoreFiles < Minitest::Test
     etag = '98765432109876543210987654321021'
     mock_s3_resp = Minitest::Mock.new
     mock_s3_resp.expect(:etag, etag)
-    @mock_s3.expect(:put_object, mock_s3_resp, [File, Settings.aws.s3.backup_bucket, "fixity/#{manifest}"])
+    @mock_s3.expect(:put_object, mock_s3_resp, [File, Settings.aws.s3.fixity_bucket, "fixity/#{manifest}"])
 
     # send job
     medusa_db_id_table = Settings.aws.dynamodb.medusa_db_id_table_name
@@ -604,7 +604,7 @@ class TestBatchRestoreFiles < Minitest::Test
     s3_resp = Object.new
     def s3_resp.etag = "98765432109876543210987654321021"
     args_verification = []
-    @mock_s3.expect(:put_object, s3_resp, [Minitest::Mock, Settings.aws.s3.backup_bucket, key])
+    @mock_s3.expect(:put_object, s3_resp, [Minitest::Mock, Settings.aws.s3.fixity_bucket, key])
     File.stub(:new, mock_file) do
       etag_act = @batch_restore_files.put_manifest(manifest)
       assert_mock(@mock_s3)

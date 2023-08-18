@@ -27,7 +27,7 @@ class TestRestorationEvent < Minitest::Test
     mock_data.expect(:messages, mock_messages)
     mock_messages.expect(:count, 1)
     mock_response.expect(:messages, [mock_message])
-    mock_message.expect(:body, File.read("s3_restore_completed.json"))
+    mock_message.expect(:body, File.read("test/s3_restore_completed.json"))
     mock_message.expect(:receipt_handle, "123")
     delete_args_verification = [{queue_url: Settings.aws.sqs.s3_queue_url, receipt_handle: "123"}]
     @mock_sqs.expect(:delete_message, nil, delete_args_verification)
@@ -62,7 +62,7 @@ class TestRestorationEvent < Minitest::Test
     mock_data.expect(:messages, mock_messages)
     mock_messages.expect(:count, 1)
     mock_response.expect(:messages, [mock_message])
-    mock_message.expect(:body, File.read("s3_restore_delete.json"))
+    mock_message.expect(:body, File.read("test/s3_restore_delete.json"))
     mock_message.expect(:receipt_handle, "123")
     delete_args_verification = [{queue_url: Settings.aws.sqs.s3_queue_url, receipt_handle: "123"}]
     @mock_sqs.expect(:delete_message, nil, delete_args_verification)

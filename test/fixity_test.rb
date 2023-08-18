@@ -258,7 +258,7 @@ class TestFixity < Minitest::Test
 
     # Run test
     Time.stub(:now, Time.new(2)) do
-      @fixity.run_fixity_from_csv('test-fixity.csv')
+      @fixity.run_fixity_from_csv('test/test-fixity.csv')
       assert_mock(@mock_dynamodb)
       assert_mock(@mock_s3)
       assert_mock(@mock_medusa_sqs)
