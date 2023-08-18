@@ -57,8 +57,11 @@ class BatchRestoreFiles
     time_end = Time.now
     duration = time_end - time_start
 
-    log_message = "Get batch duration to process #{batch_count} of size: #{batch_size} files: #{duration}"
+    log_message = "Get batch duration to process #{batch_count} files of size: #{batch_size} :#{duration}"
     FixityConstants::LOGGER.info(log_message)
+
+    return if batch_count.zero?
+
     etag = put_manifest(manifest)
     send_batch_job(manifest, etag)
   end
