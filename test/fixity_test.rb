@@ -56,7 +56,6 @@ class TestFixity < Minitest::Test
     args_verification = [table_name, key, expr_attr_values, update_expr]
     @mock_dynamodb.expect(:update_item, [], args_verification)
     file_id = 123
-    error_message = nil
     args_verification = [file_id, checksum, true, Settings.aws.sqs.success]
     @mock_medusa_sqs.expect(:send_medusa_message, [], args_verification)
     Time.stub(:now, Time.new(2)) do
@@ -411,7 +410,7 @@ class TestFixity < Minitest::Test
     range = 'bytes=0-16777216'
     args_verification = [Settings.aws.s3.backup_bucket, test_key_unescaped, range]
     @mock_s3.expect(:get_object_with_byte_range, object_part, args_verification)
-    checksum = @fixity.calculate_checksum(test_key, 123, file_size)
+    @fixity.calculate_checksum(test_key, 123, file_size)
     assert_mock(@mock_s3)
   end
 

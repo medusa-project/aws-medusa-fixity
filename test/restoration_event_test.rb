@@ -44,7 +44,7 @@ class TestRestorationEvent < Minitest::Test
                       "#{Settings.aws.dynamodb.file_size} = :file_size"
     dynamodb_args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr]
     @mock_dynamodb.expect(:update_item, nil, dynamodb_args_verification)
-    resp = @restoration_event.handle_message
+    @restoration_event.handle_message
     assert_mock(@mock_sqs)
     assert_mock(@mock_dynamodb)
   end
@@ -80,7 +80,7 @@ class TestRestorationEvent < Minitest::Test
     dynamodb_args_verification = [Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr, ret_val]
     @mock_dynamodb.expect(:update_item, nil, dynamodb_args_verification)
     Time.stub(:now, Time.new(2)) do
-      resp = @restoration_event.handle_message
+      @restoration_event.handle_message
       assert_mock(@mock_sqs)
       assert_mock(@mock_dynamodb)
     end

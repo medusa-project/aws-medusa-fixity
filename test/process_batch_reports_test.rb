@@ -229,6 +229,68 @@ class TestProcessBatchReports < Minitest::Test
     assert_mock(@mock_s3_control)
   end
 
+  def test_process_failures_job_status_failed
+    job_ids_table = Settings.aws.dynamodb.batch_job_ids_table_name
+
+    # get job id
+    args_verification = [job_ids_table, 1]
+    job_id = 'job-123456789'
+    scan_resp = Minitest::Mock.new
+    items = [{Settings.aws.dynamodb.job_id => job_id}]
+    scan_resp.expect(:nil?, false)
+    scan_resp.expect(:items, items)
+    scan_resp.expect(:items, items)
+    @mock_dynamodb.expect(:scan, scan_resp, args_verification)
+
+    # get job info
+    job_info = Minitest::Mock.new
+    @mock_s3_control.expect(:describe_job, job_info, [job_id])
+    job_info.expect(:nil?, false)
+    job_info.expect(:nil?, false)
+
+    # get job status
+    job = Minitest::Mock.new
+    job_info.expect(:job, job)
+    job.expect(:status, Settings.aws.s3.failed)
+
+    # remove job id
+    key = { Settings.aws.dynamodb.job_id => job_id }
+    @mock_dynamodb.expect(:delete_item, [], [key, job_ids_table])
+
+    @p_b_r.process_failures
+    assert_mock(@mock_dynamodb)
+    assert_mock(@mock_s3_control)
+  end
+
+  def test_process_failures_job_status_not_complete
+    job_ids_table = Settings.aws.dynamodb.batch_job_ids_table_name
+
+    # get job id
+    args_verification = [job_ids_table, 1]
+    job_id = 'job-123456789'
+    scan_resp = Minitest::Mock.new
+    items = [{Settings.aws.dynamodb.job_id => job_id}]
+    scan_resp.expect(:nil?, false)
+    scan_resp.expect(:items, items)
+    scan_resp.expect(:items, items)
+    @mock_dynamodb.expect(:scan, scan_resp, args_verification)
+
+    # get job info
+    job_info = Minitest::Mock.new
+    @mock_s3_control.expect(:describe_job, job_info, [job_id])
+    job_info.expect(:nil?, false)
+    job_info.expect(:nil?, false)
+
+    # get job status
+    job = Minitest::Mock.new
+    job_info.expect(:job, job)
+    job.expect(:status, 'Active')
+
+    @p_b_r.process_failures
+    assert_mock(@mock_dynamodb)
+    assert_mock(@mock_s3_control)
+  end
+
   def test_get_job_id_returns_nil
     args_verification = [Settings.aws.dynamodb.batch_job_ids_table_name, 1]
     @mock_dynamodb.expect(:scan, nil, args_verification)
