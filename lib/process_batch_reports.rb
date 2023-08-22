@@ -32,7 +32,16 @@ class ProcessBatchReports
     job_info = get_job_info(job_id)
     return nil if job_info.nil?
 
-    return if get_job_status(job_info) != Settings.aws.s3.complete
+    job_status = get_job_status(job_info)
+
+    if job_status == Settings.aws.s3.failed
+      failed_message = "Batch job: #{job_id} failed"
+      FixityConstants::LOGGER.error(failed_message)
+      remove_job_id(job_id)
+      return
+    end
+
+    return if job_status != Settings.aws.s3.complete
 
     get_duration(job_info)
     job_failures = get_tasks_failed(job_info)
@@ -86,7 +95,7 @@ class ProcessBatchReports
 
   def get_manifest_key(job_id)
     key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
-    s3_json_resp = @s3.get_object(Settings.aws.s3.backup_bucket, key)
+    s3_json_resp = @s3.get_object(Settings.aws.s3.fixity_bucket_arn, key)
     return nil if s3_json_resp.nil?
 
     JSON.parse(s3_json_resp.body.read)['Results'][0]['Key']
@@ -94,7 +103,7 @@ class ProcessBatchReports
 
   def parse_completion_report(manifest_key)
     response_target = './report.csv'
-    @s3.get_object_to_response_target(Settings.aws.s3.backup_bucket, manifest_key, response_target)
+    @s3.get_object_to_response_target(Settings.aws.s3.fixity_bucket, manifest_key, response_target)
     batch_completion_table = CSV.new(File.read('report.csv'))
     error_batch = []
     batch_completion_table.each do |row|

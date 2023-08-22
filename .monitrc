@@ -1,0 +1,9 @@
+set daemon 60
+set httpd port 2812 and
+    use address localhost  # only accept connection from localhost (drop if you use M/Monit)
+    allow localhost        # allow localhost to connect to the server and
+    allow admin:monit
+
+check process fixity with pidfile /home/ec2-user/aws-medusa-fixity/tmp/start_fixity.pid
+	start program = "/bin/bash /home/ec2-user/aws-medusa-fixity/bin/fixity start"
+	stop program = "/bin/bash /home/ec2-user/aws-medusa-fixity/bin/fixity stop"

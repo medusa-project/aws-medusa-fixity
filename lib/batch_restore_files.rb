@@ -13,7 +13,7 @@ require_relative 'fixity/s3'
 require_relative 'fixity/s3_control'
 
 class BatchRestoreFiles
-  MAX_BATCH_COUNT = 10000
+  MAX_BATCH_COUNT = 20000
   MAX_BATCH_SIZE = 16 * 1024**2 * MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   attr_accessor :s3, :s3_control, :dynamodb, :medusa_db
@@ -57,8 +57,11 @@ class BatchRestoreFiles
     time_end = Time.now
     duration = time_end - time_start
 
-    log_message = "Get batch duration to process #{batch_count} of size: #{batch_size} files: #{duration}"
+    log_message = "Get batch duration to process #{batch_count} files of size: #{batch_size} :#{duration}"
     FixityConstants::LOGGER.info(log_message)
+
+    return if batch_count.zero?
+
     etag = put_manifest(manifest)
     send_batch_job(manifest, etag)
   end
@@ -223,7 +226,7 @@ class BatchRestoreFiles
   def put_manifest(manifest)
     body = File.new(manifest)
     key = "fixity/#{manifest}"
-    s3_resp = @s3.put_object(body, Settings.aws.s3.backup_bucket, key)
+    s3_resp = @s3.put_object(body, Settings.aws.s3.fixity_bucket, key)
     s3_resp.etag
   end
 
@@ -288,5 +291,9 @@ class BatchRestoreFiles
     table_name = Settings.aws.dynamodb.batch_job_ids_table_name
     item = { Settings.aws.dynamodb.job_id => job_id }
     @dynamodb.put_item(table_name, item)
+  end
+
+  def max_batch_count
+    MAX_BATCH_COUNT
   end
 end

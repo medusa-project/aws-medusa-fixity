@@ -33,7 +33,7 @@ class S3Control
                                                }
                                              },
                                              report: {
-                                               bucket: Settings.aws.s3.backup_bucket_arn,
+                                               bucket: Settings.aws.s3.fixity_bucket_arn,
                                                format: 'Report_CSV_20180820', # accepts Report_CSV_20180820
                                                enabled: true, # required
                                                prefix: Settings.aws.s3.batch_prefix,
@@ -46,7 +46,7 @@ class S3Control
                                                  fields: %w[Bucket Key] # accepts Ignore, Bucket, Key, VersionId
                                                },
                                                location: { # required
-                                                 object_arn: "#{Settings.aws.s3.backup_bucket_arn}/fixity/#{manifest}", # required
+                                                 object_arn: "#{Settings.aws.s3.fixity_bucket_arn}/fixity/#{manifest}", # required
                                                  etag: etag # required
                                                }
                                              },
