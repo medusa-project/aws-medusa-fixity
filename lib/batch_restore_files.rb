@@ -45,7 +45,7 @@ class BatchRestoreFiles
       batch_count += medusa_files.size
       batch_size += size
       id = id_iterator
-      # next if (file_directories.nil? || file_directories.empty?) || (medusa_files.nil? || medusa_files.empty?)
+
       directories = get_path_hash(file_directories)
       batch = generate_manifest(manifest, medusa_files, directories)
       put_requests = @dynamodb.get_put_requests(batch)

@@ -13,3 +13,12 @@ services:
     ports:
       - "8000:8000"
     hostname: dynamodb
+  db:
+    image: postgres:15-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: medusa
+    hostname: postgres
+
+
+

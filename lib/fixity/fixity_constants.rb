@@ -15,7 +15,7 @@ class FixityConstants
   DYNAMODB_CLIENT = Aws::DynamoDB::Client.new(endpoint: "http://localhost:8000")
   MEDUSA_QUEUE_URL = "http://localhost:9324/queue/fixity-to-medusa-local"
   S3_QUEUE_URL = "http://localhost:9324/queue/aws-to-fixity-local"
-  LOGGER = Logger.new('/Users/gschmitt/workspace/aws-medusa-fixity/logs/fixity.log', 'daily')
+  LOGGER = Logger.new("#{ENV['LOGGER_HOME']}/fixity.log", 'daily')
   S3_CONTROL_CLIENT = Aws::S3Control::Client.new(region: Settings.aws.region_west)
 
 end

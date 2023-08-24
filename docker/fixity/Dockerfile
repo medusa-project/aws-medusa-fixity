@@ -12,18 +12,6 @@ RUN gem install bundler && bundle install --without development test --jobs 20 -
 
 COPY ../.. ./
 
-# Adding crontab to the appropriate location
-ADD crontab /etc/cron.d/my-cron-file
-
-# Giving permission to crontab file
-RUN chmod 0644 /etc/cron.d/my-cron-file
-
-# Running crontab
-RUN crontab /etc/cron.d/my-cron-file
-
-# Creating entry point for cron
-ENTRYPOINT ["cron", "-f"]
-
 ## This is the web server entry point. It will need to be overridden when
 ## running the workers.
 #CMD ["echo", "Error running task, please check the container override command!"]
