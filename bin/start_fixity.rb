@@ -21,5 +21,5 @@ pid_files.each do |pid_file|
   task = IO.popen("ruby #{bin_home}/compute_fixity.rb")
   File.write(pid_file, task.pid)
   # add in quick sleep to prevent the same file being run through fixity multiple times
-  sleep 0.04
+  sleep 0.1
 end
