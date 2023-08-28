@@ -53,8 +53,6 @@ class Fixity
     fixity_batch = get_fixity_batch
     return nil if fixity_batch.nil? || fixity_batch.empty?
 
-    FixityUtils.decrement_fixity_count
-
     # update dynamodb table to remove fixity ready and set fixity status
     update_fixity_ready_batch = get_update_fixity_ready_batch(fixity_batch)
     return nil if update_fixity_ready_batch.empty?
