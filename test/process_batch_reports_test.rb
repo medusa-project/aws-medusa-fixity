@@ -18,12 +18,13 @@ class TestProcessBatchReports < Minitest::Test
   def test_process_failures
     job_ids_table = Settings.aws.dynamodb.batch_job_ids_table_name
     backup_bucket = Settings.aws.s3.backup_bucket
+    fixity_bucket = Settings.aws.s3.fixity_bucket_arn
 
     # get job id
     args_verification = [job_ids_table, 1]
     job_id = 'job-123456789'
     scan_resp = Minitest::Mock.new
-    items = [{Settings.aws.dynamodb.job_id => job_id}]
+    items = [{ Settings.aws.dynamodb.job_id => job_id }]
     scan_resp.expect(:nil?, false)
     scan_resp.expect(:items, items)
     scan_resp.expect(:items, items)
@@ -58,21 +59,20 @@ class TestProcessBatchReports < Minitest::Test
     job.expect(:progress_summary, progress_summary)
     progress_summary.expect(:number_of_tasks_failed, 3)
 
-
     # get manifest key
     manifest_key = "#{job_id}/results/12345678912345678912345678912.csv"
     key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
     json_resp = Minitest::Mock.new
-    @mock_s3.expect(:get_object, json_resp, [backup_bucket, key])
+    @mock_s3.expect(:get_object, json_resp, [fixity_bucket, key])
     json_resp.expect(:nil?, false)
     json_body = Minitest::Mock.new
     json_resp.expect(:body, json_body)
-    read_resp = {'Results' => [{'Key' => manifest_key}]}.to_json
+    read_resp = { 'Results' => [{ 'Key' => manifest_key }] }.to_json
     json_body.expect(:read, read_resp)
 
     # parse completion report
     response_target = './report.csv'
-    s3_args_verification = [backup_bucket, manifest_key, response_target]
+    s3_args_verification = [fixity_bucket, manifest_key, response_target]
     @mock_s3.expect(:get_object_to_response_target, [], s3_args_verification)
 
     table_name = Settings.aws.dynamodb.fixity_table_name
@@ -84,10 +84,9 @@ class TestProcessBatchReports < Minitest::Test
     key1 = '123/test.tst'
     file_id1 = '1'
 
-
     # get item id from dynamodb
-    expr_attr_vals = { ':s3_key' => key1}
-    items = [{Settings.aws.dynamodb.file_id => file_id1}]
+    expr_attr_vals = { ':s3_key' => key1 }
+    items = [{ Settings.aws.dynamodb.file_id => file_id1 }]
     dynamodb_args_ver = [table_name, limit, expr_attr_vals, key_cond_expr]
     @mock_dynamodb.expect(:query, query_resp, dynamodb_args_ver)
     query_resp.expect(:nil?, false)
@@ -96,7 +95,7 @@ class TestProcessBatchReports < Minitest::Test
 
     # check s3 bucket for item to retry restoration
     @mock_s3.expect(:found?, true, [backup_bucket, key1])
-    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, backup_bucket, key1, file_id1 ])
+    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, backup_bucket, key1, file_id1])
     error_hash1 = {
       Settings.aws.dynamodb.s3_key => key1,
       Settings.aws.dynamodb.file_id => file_id1,
@@ -110,8 +109,8 @@ class TestProcessBatchReports < Minitest::Test
     file_id2 = '2'
 
     # get item id from dynamodb
-    expr_attr_vals = { ':s3_key' => key2}
-    items = [{Settings.aws.dynamodb.file_id => file_id2}]
+    expr_attr_vals = { ':s3_key' => key2 }
+    items = [{ Settings.aws.dynamodb.file_id => file_id2 }]
     dynamodb_args_ver = [table_name, limit, expr_attr_vals, key_cond_expr]
     @mock_dynamodb.expect(:query, query_resp, dynamodb_args_ver)
     query_resp.expect(:nil?, false)
@@ -120,7 +119,7 @@ class TestProcessBatchReports < Minitest::Test
 
     # check s3 bucket for item to retry restoration
     @mock_s3.expect(:found?, true, [backup_bucket, key2])
-    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, backup_bucket, key2, file_id2 ])
+    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, backup_bucket, key2, file_id2])
     error_hash2 = {
       Settings.aws.dynamodb.s3_key => key2,
       Settings.aws.dynamodb.file_id => file_id2,
@@ -134,8 +133,8 @@ class TestProcessBatchReports < Minitest::Test
     file_id3 = '3'
 
     # get item id from dynamodb
-    expr_attr_vals = { ':s3_key' => key3,}
-    items = [{Settings.aws.dynamodb.file_id => file_id3}]
+    expr_attr_vals = { ':s3_key' => key3 }
+    items = [{ Settings.aws.dynamodb.file_id => file_id3 }]
     dynamodb_args_ver = [table_name, limit, expr_attr_vals, key_cond_expr]
     @mock_dynamodb.expect(:query, query_resp, dynamodb_args_ver)
     query_resp.expect(:nil?, false)
@@ -179,13 +178,12 @@ class TestProcessBatchReports < Minitest::Test
 
   def test_process_failures_no_failures
     job_ids_table = Settings.aws.dynamodb.batch_job_ids_table_name
-    backup_bucket = Settings.aws.s3.backup_bucket
 
     # get job id
     args_verification = [job_ids_table, 1]
     job_id = 'job-123456789'
     scan_resp = Minitest::Mock.new
-    items = [{Settings.aws.dynamodb.job_id => job_id}]
+    items = [{ Settings.aws.dynamodb.job_id => job_id }]
     scan_resp.expect(:nil?, false)
     scan_resp.expect(:items, items)
     scan_resp.expect(:items, items)
@@ -229,6 +227,68 @@ class TestProcessBatchReports < Minitest::Test
     assert_mock(@mock_s3_control)
   end
 
+  def test_process_failures_job_status_failed
+    job_ids_table = Settings.aws.dynamodb.batch_job_ids_table_name
+
+    # get job id
+    args_verification = [job_ids_table, 1]
+    job_id = 'job-123456789'
+    scan_resp = Minitest::Mock.new
+    items = [{ Settings.aws.dynamodb.job_id => job_id }]
+    scan_resp.expect(:nil?, false)
+    scan_resp.expect(:items, items)
+    scan_resp.expect(:items, items)
+    @mock_dynamodb.expect(:scan, scan_resp, args_verification)
+
+    # get job info
+    job_info = Minitest::Mock.new
+    @mock_s3_control.expect(:describe_job, job_info, [job_id])
+    job_info.expect(:nil?, false)
+    job_info.expect(:nil?, false)
+
+    # get job status
+    job = Minitest::Mock.new
+    job_info.expect(:job, job)
+    job.expect(:status, Settings.aws.s3.failed)
+
+    # remove job id
+    key = { Settings.aws.dynamodb.job_id => job_id }
+    @mock_dynamodb.expect(:delete_item, [], [key, job_ids_table])
+
+    @p_b_r.process_failures
+    assert_mock(@mock_dynamodb)
+    assert_mock(@mock_s3_control)
+  end
+
+  def test_process_failures_job_status_not_complete
+    job_ids_table = Settings.aws.dynamodb.batch_job_ids_table_name
+
+    # get job id
+    args_verification = [job_ids_table, 1]
+    job_id = 'job-123456789'
+    scan_resp = Minitest::Mock.new
+    items = [{ Settings.aws.dynamodb.job_id => job_id }]
+    scan_resp.expect(:nil?, false)
+    scan_resp.expect(:items, items)
+    scan_resp.expect(:items, items)
+    @mock_dynamodb.expect(:scan, scan_resp, args_verification)
+
+    # get job info
+    job_info = Minitest::Mock.new
+    @mock_s3_control.expect(:describe_job, job_info, [job_id])
+    job_info.expect(:nil?, false)
+    job_info.expect(:nil?, false)
+
+    # get job status
+    job = Minitest::Mock.new
+    job_info.expect(:job, job)
+    job.expect(:status, 'Active')
+
+    @p_b_r.process_failures
+    assert_mock(@mock_dynamodb)
+    assert_mock(@mock_s3_control)
+  end
+
   def test_get_job_id_returns_nil
     args_verification = [Settings.aws.dynamodb.batch_job_ids_table_name, 1]
     @mock_dynamodb.expect(:scan, nil, args_verification)
@@ -241,7 +301,7 @@ class TestProcessBatchReports < Minitest::Test
     args_verification = [Settings.aws.dynamodb.batch_job_ids_table_name, 1]
     job_id = 'job-123456789'
     scan_resp = Minitest::Mock.new
-    items = [{Settings.aws.dynamodb.job_id => job_id}]
+    items = [{ Settings.aws.dynamodb.job_id => job_id }]
     scan_resp.expect(:nil?, false)
     scan_resp.expect(:items, items)
     scan_resp.expect(:items, items)
@@ -320,10 +380,10 @@ class TestProcessBatchReports < Minitest::Test
     mock_s3_resp = Minitest::Mock.new
     mock_body = Minitest::Mock.new
     test_key = '123/test.tst'
-    read_resp = {'Results' => [{'Key' => test_key}]}.to_json
+    read_resp = { 'Results' => [{ 'Key' => test_key }] }.to_json
     job_id = 'job-123456789'
     key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
-    args_verification = [Settings.aws.s3.backup_bucket, key]
+    args_verification = [Settings.aws.s3.fixity_bucket_arn, key]
     @mock_s3.expect(:get_object, mock_s3_resp, args_verification)
     mock_s3_resp.expect(:nil?, false)
     mock_s3_resp.expect(:body, mock_body)
@@ -338,56 +398,56 @@ class TestProcessBatchReports < Minitest::Test
     manifest_key = 'test/test-manifest.csv'
     table_name = Settings.aws.dynamodb.fixity_table_name
     limit = 1
-    key_1 = '123/test.tst'
-    key_2 = '123/test1.tst'
-    key_3 = '345/test.tst'
-    expr_attr_vals_1 = { ':s3_key' => key_1,}
-    expr_attr_vals_2 = { ':s3_key' => key_2,}
-    expr_attr_vals_3 = { ':s3_key' => key_3,}
+    key1 = '123/test.tst'
+    key2 = '123/test1.tst'
+    key3 = '345/test.tst'
+    expr_attr_vals1 = { ':s3_key' => key1 }
+    expr_attr_vals2 = { ':s3_key' => key2 }
+    expr_attr_vals3 = { ':s3_key' => key3 }
     key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :s3_key"
     query_resp1 = Object.new
-    def query_resp1.items = [{Settings.aws.dynamodb.file_id => '1'}]
+    def query_resp1.items = [{ Settings.aws.dynamodb.file_id => '1' }]
     query_resp2 = Object.new
-    def query_resp2.items = [{Settings.aws.dynamodb.file_id => '2'}]
+    def query_resp2.items = [{ Settings.aws.dynamodb.file_id => '2' }]
     query_resp3 = Object.new
-    def query_resp3.items = [{Settings.aws.dynamodb.file_id => '3'}]
-    dynamodb_args_ver_1 = [table_name, limit, expr_attr_vals_1, key_cond_expr]
-    dynamodb_args_ver_2 = [table_name, limit, expr_attr_vals_2, key_cond_expr]
-    dynamodb_args_ver_3 = [table_name, limit, expr_attr_vals_3, key_cond_expr]
-    @mock_dynamodb.expect(:query, query_resp1, dynamodb_args_ver_1)
-    @mock_dynamodb.expect(:query, query_resp2, dynamodb_args_ver_2)
-    @mock_dynamodb.expect(:query, query_resp3, dynamodb_args_ver_3)
+    def query_resp3.items = [{ Settings.aws.dynamodb.file_id => '3' }]
+    dynamodb_args_ver1 = [table_name, limit, expr_attr_vals1, key_cond_expr]
+    dynamodb_args_ver2 = [table_name, limit, expr_attr_vals2, key_cond_expr]
+    dynamodb_args_ver3 = [table_name, limit, expr_attr_vals3, key_cond_expr]
+    @mock_dynamodb.expect(:query, query_resp1, dynamodb_args_ver1)
+    @mock_dynamodb.expect(:query, query_resp2, dynamodb_args_ver2)
+    @mock_dynamodb.expect(:query, query_resp3, dynamodb_args_ver3)
 
-    s3_args_verification = [Settings.aws.s3.backup_bucket, manifest_key, response_target]
+    s3_args_verification = [Settings.aws.s3.fixity_bucket_arn, manifest_key, response_target]
     @mock_s3.expect(:get_object_to_response_target, [], s3_args_verification)
     error_hash1 = {
-      Settings.aws.dynamodb.s3_key => key_1,
+      Settings.aws.dynamodb.s3_key => key1,
       Settings.aws.dynamodb.file_id => '1',
       Settings.aws.dynamodb.err_code => '409',
       Settings.aws.dynamodb.https_status_code => 'RestoreAlreadyInProgress',
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
     error_hash2 = {
-      Settings.aws.dynamodb.s3_key => key_2,
+      Settings.aws.dynamodb.s3_key => key2,
       Settings.aws.dynamodb.file_id => '2',
       Settings.aws.dynamodb.err_code => '409',
       Settings.aws.dynamodb.https_status_code => 'RestoreAlreadyInProgress',
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
     error_hash3 = {
-      Settings.aws.dynamodb.s3_key => key_3,
+      Settings.aws.dynamodb.s3_key => key3,
       Settings.aws.dynamodb.file_id => '3',
       Settings.aws.dynamodb.err_code => '200',
       Settings.aws.dynamodb.https_status_code => 'PermanentFailure',
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
     exp_error_batch = [error_hash1, error_hash2, error_hash3]
-    @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key_1])
-    @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key_2])
-    @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key_3])
-    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key_1, '1' ])
-    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key_2, '2' ])
-    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key_3, '3' ])
+    @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key1])
+    @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key2])
+    @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key3])
+    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key1, '1'])
+    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key2, '2'])
+    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key3, '3'])
     Time.stub(:now, Time.new(1)) do
       File.stub(:read, File.read("#{ENV['TEST_HOME']}/report.csv")) do
         error_batch = @p_b_r.parse_completion_report(manifest_key)
@@ -400,9 +460,9 @@ class TestProcessBatchReports < Minitest::Test
   def test_get_file_id
     table_name = Settings.aws.dynamodb.fixity_table_name
     query_resp = Object.new
-    def query_resp.items = [{Settings.aws.dynamodb.file_id => '123'}]
+    def query_resp.items = [{ Settings.aws.dynamodb.file_id => '123' }]
     limit = 1
-    expr_attr_vals = { ':s3_key' => '123/test.tst',}
+    expr_attr_vals = { ':s3_key' => '123/test.tst' }
     key_cond_expr = "#{Settings.aws.dynamodb.s3_key} = :s3_key"
     args_verification = [table_name, limit, expr_attr_vals, key_cond_expr]
     @mock_dynamodb.expect(:query, query_resp, args_verification)
@@ -413,11 +473,10 @@ class TestProcessBatchReports < Minitest::Test
 
   def test_remove_job_id
     job_id = 'job-123456789'
-    key = { Settings.aws.dynamodb.job_id => job_id}
+    key = { Settings.aws.dynamodb.job_id => job_id }
     args_verification = [key, Settings.aws.dynamodb.batch_job_ids_table_name]
     @mock_dynamodb.expect(:delete_item, [], args_verification)
     @p_b_r.remove_job_id(job_id)
     assert_mock(@mock_dynamodb)
   end
-
 end
