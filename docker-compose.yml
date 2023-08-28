@@ -14,11 +14,17 @@ services:
       - "8000:8000"
     hostname: dynamodb
   db:
-    image: postgres:15-alpine3.18
+    build:
+      context: docker/postgres
+      dockerfile: Dockerfile
     restart: always
     environment:
+      POSTGRES_USER: medusa
       POSTGRES_PASSWORD: medusa
+      POSTGRES_DB: medusa
     hostname: postgres
+    ports:
+      - "5432:5432"
 
 
 
