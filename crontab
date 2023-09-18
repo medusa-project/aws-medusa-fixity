@@ -1,8 +1,8 @@
 #initiate restoration of a batch of objects everyday at midnight
-0 0 * * * /home/ec2-user/aws-medusa-fixity/bin/initiate_batch_restoration.sh
+0 0 * * * /home/ec2-user/aws-medusa-fixity/bin/start_batch_restoration.sh
 
 #process batch reports everyday at noon
-0 12 * * * /home/ec2-user/aws-medusa-fixity/bin/process_batch_reports.sh
+0 12 * * * /home/ec2-user/aws-medusa-fixity/bin/start_process_batch_reports.sh
 
 #check for messages in the queue every minute
-* * * * * /home/ec2-user/aws-medusa-fixity/bin/fetch_responses.sh
+* * * * * /home/ec2-user/aws-medusa-fixity/bin/start_fetch_responses.sh
