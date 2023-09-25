@@ -383,7 +383,7 @@ class TestProcessBatchReports < Minitest::Test
     read_resp = { 'Results' => [{ 'Key' => test_key }] }.to_json
     job_id = 'job-123456789'
     key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
-    args_verification = [Settings.aws.s3.fixity_bucket_arn, key]
+    args_verification = [Settings.aws.s3.fixity_bucket, key]
     @mock_s3.expect(:get_object, mock_s3_resp, args_verification)
     mock_s3_resp.expect(:nil?, false)
     mock_s3_resp.expect(:body, mock_body)
