@@ -42,6 +42,7 @@ aws:
         restore_completed: "ObjectRestore:Completed"
         restore_deleted: "ObjectRestore:Delete"
         access_denied: "AccessDenied"
+        already_in_progress: "RestoreAlreadyInProgress"
     sqs:
         action: "action"
         file_fixity: "file_fixity"

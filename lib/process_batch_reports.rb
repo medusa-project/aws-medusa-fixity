@@ -112,6 +112,8 @@ class ProcessBatchReports
       error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{https_status_code}:#{result_message}"
       FixityConstants::LOGGER.error(error_message)
 
+      next if https_status_code == Settings.aws.s3.already_in_progress
+
       # re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
       file_found = @s3.found?(Settings.aws.s3.backup_bucket, key)
       error_message = "Object with key: #{key} not found in bucket: #{bucket}"
