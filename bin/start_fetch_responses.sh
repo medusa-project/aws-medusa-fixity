@@ -2,12 +2,12 @@
 source /home/ec2-user/aws-medusa-fixity/bin/set-vars.sh
 
 #fetch responses from the S3 restoration events, check every second
-for  (( i=1; i <= 20; i++ ))
+for  (( i=1; i <= 30; i++ ))
 do
     ruby "$BIN_HOME"/fetch_responses.rb &
     RESPONSE_PID=$!
     echo "$RESPONSE_PID" > "$TMP_HOME"/fetch_responses."${i}".pid
-    sleep 3
+    sleep 2
 done
 
 exit 0
