@@ -88,6 +88,12 @@ class BatchRestoreFiles
     send_batch_job(manifest, etag)
   end
 
+  def batch_restore_expired_items
+    manifest = 'manifest-expired-files.csv'
+    etag = put_manifest(manifest)
+    send_batch_job(manifest, etag)
+  end
+
   def get_medusa_id
     table_name = Settings.aws.dynamodb.medusa_db_id_table_name
     limit = 1
@@ -251,9 +257,12 @@ class BatchRestoreFiles
     [file_directories.uniq, medusa_files, batch_size]
   end
 
-  def restore_item(batch_item)
+  def restore_expired_item(batch_item)
     key = FixityUtils.unescape(batch_item.s3_key)
-    @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, batch_item.file_id)
+    open('manifest-expired-files.csv', 'a') { |f|
+      f.puts "#{Settings.aws.s3.backup_bucket},#{key}"
+    }
+    # @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, batch_item.file_id)
     put_batch_item(batch_item)
   end
 
