@@ -1,0 +1,9 @@
+version: '3'
+services:
+  fixity:
+    build:
+      context: .
+      dockerfile: docker/fixity/Dockerfile
+    environment:
+      - IS_DOCKER=true
+    command: bash -c "rake test"

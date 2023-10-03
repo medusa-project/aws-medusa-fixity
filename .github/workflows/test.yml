@@ -8,5 +8,6 @@ jobs:
   run_tests:
     runs-on: ubuntu-latest
     steps:
+      - name:
       - name: Run the tests
-        run: rake test
+        run: docker-compose up --build
