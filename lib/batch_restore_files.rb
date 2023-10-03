@@ -258,7 +258,7 @@ class BatchRestoreFiles
   end
 
   def restore_expired_item(batch_item)
-    key = FixityUtils.unescape(batch_item.s3_key)
+    key = FixityUtils.escape(batch_item.s3_key)
     open('manifest-expired-files.csv', 'a') { |f|
       f.puts "#{Settings.aws.s3.backup_bucket},#{key}"
     }
