@@ -15,10 +15,10 @@ class FixityUtils
   def self.escape_csv(csv_file, manifest)
     manifest_table = CSV.new(File.read(csv_file))
     manifest_table.each do |row|
-      _bucket, key = row
+      bucket, key = row
       key = escape(key)
       open(manifest, 'a') { |f|
-        f.puts "#{Settings.aws.s3.backup_bucket},#{key}"
+        f.puts "#{bucket},#{key}"
       }
     end
   end
