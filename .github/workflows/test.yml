@@ -5,9 +5,11 @@ on:
     - prod
 
 jobs:
-  run_tests:
+  build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
       - name: Run the tests
         run: |
             docker-compose up --build --exit-code-from fixity
