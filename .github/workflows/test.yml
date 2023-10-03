@@ -9,4 +9,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run the tests
-        run: docker-compose up --build
+        run: |
+            docker-compose up --build --exit-code-from fixity
