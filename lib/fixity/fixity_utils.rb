@@ -13,9 +13,8 @@ class FixityUtils
   end
 
   def self.escape_csv(csv_file, manifest)
-    manifest_table = CSV.new(File.read(csv_file))
-    manifest_table.each do |row|
-      bucket, key = row
+    File.readlines(csv_file, chomp: true).each do |line|
+      bucket, key = line.split(',', 2)
       key = escape(key)
       open(manifest, 'a') { |f|
         f.puts "#{bucket},#{key}"
