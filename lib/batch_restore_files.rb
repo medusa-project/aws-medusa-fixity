@@ -262,7 +262,12 @@ class BatchRestoreFiles
     open('manifest-expired-files.csv', 'a') { |f|
       f.puts "#{Settings.aws.s3.backup_bucket},#{key}"
     }
-    # @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, batch_item.file_id)
+    put_batch_item(batch_item)
+  end
+
+  def restore_item(batch_item)
+    key = FixityUtils.unescape(batch_item.s3_key)
+    @s3.restore_object(@dynamodb, Settings.aws.s3.backup_bucket, key, batch_item.file_id)
     put_batch_item(batch_item)
   end
 

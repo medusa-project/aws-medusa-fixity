@@ -93,17 +93,6 @@ class TestProcessBatchReports < Minitest::Test
     query_resp.expect(:items, items)
     query_resp.expect(:items, items)
 
-    # check s3 bucket for item to retry restoration
-    @mock_s3.expect(:found?, true, [backup_bucket, key1])
-    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, backup_bucket, key1, file_id1])
-    error_hash1 = {
-      Settings.aws.dynamodb.s3_key => key1,
-      Settings.aws.dynamodb.file_id => file_id1,
-      Settings.aws.dynamodb.err_code => '409',
-      Settings.aws.dynamodb.https_status_code => 'RestoreAlreadyInProgress',
-      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
-    }
-
     # failure item 2
     key2 = '123/test1.tst'
     file_id2 = '2'
@@ -123,8 +112,8 @@ class TestProcessBatchReports < Minitest::Test
     error_hash2 = {
       Settings.aws.dynamodb.s3_key => key2,
       Settings.aws.dynamodb.file_id => file_id2,
-      Settings.aws.dynamodb.err_code => '409',
-      Settings.aws.dynamodb.https_status_code => 'RestoreAlreadyInProgress',
+      Settings.aws.dynamodb.err_code => '200',
+      Settings.aws.dynamodb.https_status_code => 'PermanentFailure',
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
 
@@ -153,11 +142,10 @@ class TestProcessBatchReports < Minitest::Test
       Settings.aws.dynamodb.https_status_code => Settings.aws.dynamodb.not_found,
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
-    error_batch = [error_hash1, error_hash2, error_hash3]
+    error_batch = [error_hash2, error_hash3]
 
     # put failures in dynamodb
-    put_requests = [[{ put_request: { item: error_hash1 } }, { put_request: { item: error_hash2 } },
-                     { put_request: { item: error_hash3 } }]]
+    put_requests = [[{ put_request: { item: error_hash2 } }, { put_request: { item: error_hash3 } }]]
     @mock_dynamodb.expect(:get_put_requests, put_requests, [error_batch])
     @mock_dynamodb.expect(:batch_write_items, [], [Settings.aws.dynamodb.restoration_errors_table_name, put_requests])
 
@@ -420,18 +408,11 @@ class TestProcessBatchReports < Minitest::Test
 
     s3_args_verification = [Settings.aws.s3.fixity_bucket_arn, manifest_key, response_target]
     @mock_s3.expect(:get_object_to_response_target, [], s3_args_verification)
-    error_hash1 = {
-      Settings.aws.dynamodb.s3_key => key1,
-      Settings.aws.dynamodb.file_id => '1',
-      Settings.aws.dynamodb.err_code => '409',
-      Settings.aws.dynamodb.https_status_code => 'RestoreAlreadyInProgress',
-      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
-    }
     error_hash2 = {
       Settings.aws.dynamodb.s3_key => key2,
       Settings.aws.dynamodb.file_id => '2',
-      Settings.aws.dynamodb.err_code => '409',
-      Settings.aws.dynamodb.https_status_code => 'RestoreAlreadyInProgress',
+      Settings.aws.dynamodb.err_code => '200',
+      Settings.aws.dynamodb.https_status_code => 'PermanentFailure',
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
     error_hash3 = {
@@ -441,11 +422,9 @@ class TestProcessBatchReports < Minitest::Test
       Settings.aws.dynamodb.https_status_code => 'PermanentFailure',
       Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
     }
-    exp_error_batch = [error_hash1, error_hash2, error_hash3]
-    @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key1])
+    exp_error_batch = [error_hash2, error_hash3]
     @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key2])
     @mock_s3.expect(:found?, true, [Settings.aws.s3.backup_bucket, key3])
-    @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key1, '1'])
     @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key2, '2'])
     @mock_s3.expect(:restore_object, [], [@mock_dynamodb, Settings.aws.s3.backup_bucket, key3, '3'])
     Time.stub(:now, Time.new(1)) do

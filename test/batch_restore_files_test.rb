@@ -133,6 +133,8 @@ class TestBatchRestoreFiles < Minitest::Test
       assert_mock(@mock_s3)
       assert_mock(@mock_s3_control)
     end
+
+    File.delete(manifest)
   end
 
   def test_batch_restore_empty_batch
@@ -571,7 +573,8 @@ class TestBatchRestoreFiles < Minitest::Test
       end
       assert_equal(batch_exp, batch_act)
     end
-    File.truncate(manifest, 0)
+
+    File.delete(manifest) if File.exist?(manifest)
   end
 
   def test_generate_manifest_escapes_special_characters
@@ -634,7 +637,8 @@ class TestBatchRestoreFiles < Minitest::Test
       end
       assert_equal(batch_exp, batch_act)
     end
-    File.truncate(manifest, 0)
+
+    File.delete(manifest) if File.exist?(manifest)
   end
 
   def test_put_medusa_id
@@ -720,6 +724,10 @@ class TestBatchRestoreFiles < Minitest::Test
     assert_equal(file_dirs_exp, file_dirs_act)
     assert_equal(medusa_files_exp, medusa_files_act)
     assert_equal(size_exp, size_act)
+  end
+
+  def test_restore_expired_item
+    skip
   end
 
   def test_restore_item

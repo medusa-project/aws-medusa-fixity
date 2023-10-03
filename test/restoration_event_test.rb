@@ -1,5 +1,6 @@
 require 'minitest/autorun'
 require 'config'
+require 'csv'
 
 require_relative '../lib/restoration_event'
 require_relative '../lib/fixity/dynamodb'
@@ -145,13 +146,18 @@ class TestRestorationEvent < Minitest::Test
   end
 
   def test_handle_expiration_expired
-    update_item_resp = Object.new
-    def update_item_resp.attributes = { Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating,
-                                        Settings.aws.dynamodb.s3_key => '123/test.tst',
-                                        Settings.aws.dynamodb.file_id => '123',
-                                        Settings.aws.dynamodb.initial_checksum => '12345678901234567890123456789012' }
-    s3_args_validation = [@mock_dynamodb, Settings.aws.s3.backup_bucket, '123/test.tst', 123]
-    @mock_s3.expect(:restore_object, [], s3_args_validation)
+    manifest = 'manifest-expired-files.csv'
+    mock_update_item_resp = Minitest::Mock.new
+    attributes = { Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating,
+                   Settings.aws.dynamodb.s3_key => '123/test.tst',
+                   Settings.aws.dynamodb.file_id => '123',
+                   Settings.aws.dynamodb.initial_checksum => '12345678901234567890123456789012' }
+    mock_update_item_resp.expect(:nil?, false)
+    mock_update_item_resp.expect(:attributes, attributes)
+    mock_update_item_resp.expect(:attributes, attributes)
+    mock_update_item_resp.expect(:attributes, attributes)
+    mock_update_item_resp.expect(:attributes, attributes)
+
     item = {
       Settings.aws.dynamodb.s3_key => '123/test.tst',
       Settings.aws.dynamodb.file_id => 123,
@@ -162,10 +168,18 @@ class TestRestorationEvent < Minitest::Test
     dynamodb_args_validation = [Settings.aws.dynamodb.fixity_table_name, item]
     @mock_dynamodb.expect(:put_item, [], dynamodb_args_validation)
     Time.stub(:now, Time.new(2)) do
-      @restoration_event.handle_expiration(update_item_resp)
+      @restoration_event.handle_expiration(mock_update_item_resp)
       assert_mock(@mock_s3)
       assert_mock(@mock_dynamodb)
+      manifest_table = CSV.new(File.read(manifest))
+      manifest_table.each do |row|
+        bucket, key = row
+        assert_equal(bucket, Settings.aws.s3.backup_bucket)
+        assert_equal('123/test.tst', key)
+      end
     end
+
+    File.delete(manifest) if File.exist?(manifest)
   end
 
   def test_handle_expiration_done
