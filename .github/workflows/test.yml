@@ -10,4 +10,5 @@ jobs:
     steps:
       - name:
       - name: Run the tests
-        run: docker-compose up --build
+        run: |
+        docker-compose up --build
