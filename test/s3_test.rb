@@ -1,8 +1,4 @@
-require 'minitest/autorun'
-require 'aws-sdk-s3'
-require 'config'
-
-require_relative '../lib/fixity/s3'
+require 'test_helper'
 
 class TestS3 < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))

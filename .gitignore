@@ -1,5 +1,6 @@
 .idea
 #/logs
+/coverage/
 /storage/
 /lib/fixity/fixity_secrets.rb
 /test/test-manifest.csv
@@ -8,3 +9,4 @@ test-special-manifest.csv
 test-manifest.csv
 manifest*
 tmp
+.DS_Store

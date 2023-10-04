@@ -1,9 +1,4 @@
-require 'minitest/autorun'
-require 'config'
-require 'csv'
-
-require_relative '../lib/restoration_event'
-require_relative '../lib/fixity/dynamodb'
+require 'test_helper'
 
 class TestRestorationEvent < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))

@@ -1,9 +1,4 @@
-require 'minitest/autorun'
-require 'config'
-require 'csv'
-require 'json'
-
-require_relative '../lib/batch_restore_files'
+require 'test_helper'
 
 class TestBatchRestoreFiles < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
@@ -731,7 +726,30 @@ class TestBatchRestoreFiles < Minitest::Test
   end
 
   def test_restore_expired_item
-    skip
+    manifest = 'manifest-expired-files.csv'
+    id = '123'
+    item_key = '123/test.tst'
+    checksum = '12345678901234567890123456789012'
+    batch_item = BatchItem.new(item_key, id, checksum)
+    test_item = {
+      Settings.aws.dynamodb.s3_key => batch_item.s3_key,
+      Settings.aws.dynamodb.file_id => batch_item.file_id,
+      Settings.aws.dynamodb.initial_checksum => batch_item.initial_checksum,
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(1).getutc.iso8601(3)
+    }
+    @mock_dynamodb.expect(:put_item, [], [Settings.aws.dynamodb.fixity_table_name, test_item])
+    Time.stub(:now, Time.new(1)) do
+      @batch_restore_files.restore_expired_item(batch_item)
+      assert_mock(@mock_dynamodb)
+      manifest_table = CSV.new(File.read(manifest))
+      manifest_table.each do |row|
+        bucket, key = row
+        assert_equal(bucket, Settings.aws.s3.backup_bucket)
+        assert_equal(item_key, key)
+      end
+    end
+    File.delete(manifest)
   end
 
   def test_restore_item

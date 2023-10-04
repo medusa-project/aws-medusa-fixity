@@ -1,8 +1,5 @@
-require 'minitest/autorun'
-require 'config'
+require 'test_helper'
 
-require_relative '../lib/fixity'
-require_relative '../lib/fixity/dynamodb'
 class TestFixity < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
 

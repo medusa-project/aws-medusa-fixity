@@ -1,8 +1,4 @@
-require 'minitest/autorun'
-require 'config'
-require 'json'
-
-require_relative '../lib/process_batch_reports'
+require 'test_helper'
 
 class TestProcessBatchReports < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
