@@ -24,3 +24,5 @@ gem 'minitest'
 gem 'rubocop'
 
 gem 'simplecov'
+
+gem 'simplecov-cobertura'
