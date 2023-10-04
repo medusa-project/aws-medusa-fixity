@@ -1,7 +1,7 @@
 .idea
 /logs
 /storage/
-#/lib/fixity/fixity_secrets.rb
+/lib/fixity/fixity_secrets.rb
 /test/test-manifest.csv
 /test/test-special-manifest.csv
 test-special-manifest.csv
