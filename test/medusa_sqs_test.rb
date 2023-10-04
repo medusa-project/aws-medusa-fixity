@@ -11,6 +11,10 @@ class TestMedusaSqs < Minitest::Test
     @medusa_sqs = MedusaSqs.new(@mock_medusa_sqs_client)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_send_medusa_message
     file_id = '123'
     checksum = '12345678901234567890123456789012'

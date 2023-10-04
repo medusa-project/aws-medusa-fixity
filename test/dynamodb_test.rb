@@ -12,6 +12,10 @@ class TestDynamodb < Minitest::Test
     @dynamodb = Dynamodb.new(@mock_dynamodb_client)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_put_item_format
     args_verification = { table_name: 'TestTable',
                           item: { Settings.aws.dynamodb.s3_key => '123/test.tst' } }

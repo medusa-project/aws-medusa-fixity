@@ -15,6 +15,10 @@ class TestProcessBatchReports < Minitest::Test
     @p_b_r = ProcessBatchReports.new(@mock_s3, @mock_dynamodb, @mock_s3_control, @mock_sqs)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_process_failures
     job_ids_table = Settings.aws.dynamodb.batch_job_ids_table_name
     backup_bucket = Settings.aws.s3.backup_bucket

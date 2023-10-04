@@ -12,6 +12,10 @@ class TestS3Control < Minitest::Test
     @s3_control = S3Control.new(@mock_s3_control_client)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_describe_job
     account_id = Settings.aws.account_id
     job_id = 'job-1234567890'

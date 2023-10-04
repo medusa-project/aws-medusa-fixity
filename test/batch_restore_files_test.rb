@@ -16,6 +16,10 @@ class TestBatchRestoreFiles < Minitest::Test
     @batch_restore_files = BatchRestoreFiles.new(@mock_s3, @mock_dynamodb, @mock_s3_control, @mock_db)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_batch_restore
     medusa_db_id_table = Settings.aws.dynamodb.medusa_db_id_table_name
     manifest = 'manifest-0002-01-01-00:00.csv'

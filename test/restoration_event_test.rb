@@ -15,6 +15,10 @@ class TestRestorationEvent < Minitest::Test
     @restoration_event = RestorationEvent.new(@mock_s3, @mock_dynamodb, @mock_sqs)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_handle_message_completed
     mock_response = Minitest::Mock.new
     mock_data = Minitest::Mock.new

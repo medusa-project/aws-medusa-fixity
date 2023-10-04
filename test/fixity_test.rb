@@ -13,6 +13,10 @@ class TestFixity < Minitest::Test
     @fixity = Fixity.new(@mock_s3, @mock_dynamodb, @mock_medusa_sqs)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_run_fixity
     key = { Settings.aws.dynamodb.s3_key => '123/test.txt' }
     checksum = '79a84828694ed3ed5482b6d33dea7dd7'

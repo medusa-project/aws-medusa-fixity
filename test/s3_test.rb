@@ -12,6 +12,10 @@ class TestS3 < Minitest::Test
     @s3 = S3.new(@mock_s3_client)
   end
 
+  def teardown
+    File.truncate('logs/fixity.log', 0)
+  end
+
   def test_put_object
     body = 'testBody'
     bucket = Settings.aws.s3.backup_bucket
