@@ -9,14 +9,14 @@
         "collect_list": [
           {
             "file_path": "/home/ec2-user/logs/fixity.log",
-            "log_group_name": "fixity-demo-log",
-            "log_stream_name": "fixity-demo-log",
+            "log_group_name": "fixity-prod-log",
+            "log_stream_name": "fixity-prod-log",
             "timezone": "Local"
           }
         ]
       }
     },
-    "log_stream_name": "fixity-demo-log"
+    "log_stream_name": "fixity-prod-log"
   },
   "metrics": {
     "append_dimensions": {
@@ -31,3 +31,4 @@
     }
   }
 }
+
