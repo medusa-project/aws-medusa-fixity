@@ -22,3 +22,5 @@ gem 'config'
 gem 'minitest'
 
 gem 'rubocop'
+
+gem 'simplecov'

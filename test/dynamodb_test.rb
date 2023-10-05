@@ -1,15 +1,15 @@
 # frozen_string_literal: true
+require 'test_helper'
 
-require 'minitest/autorun'
-require 'aws-sdk-dynamodb'
-require 'config'
-
-require_relative '../lib/fixity/dynamodb'
 class TestDynamodb < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
   def setup
     @mock_dynamodb_client = Minitest::Mock.new
     @dynamodb = Dynamodb.new(@mock_dynamodb_client)
+  end
+
+  def teardown
+    File.truncate('logs/fixity.log', 0)
   end
 
   def test_put_item_format

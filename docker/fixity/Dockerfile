@@ -14,6 +14,8 @@ RUN gem install bundler && bundle install
 
 # Copy the main application, except whatever is listed in .dockerignore.
 COPY . ./
+
+RUN cp lib/fixity/fixity_constants.rb.template lib/fixity/fixity_constants.rb
 RUN cp lib/fixity/fixity_secrets.rb.template lib/fixity/fixity_secrets.rb
 
 CMD ["rake", "test"]

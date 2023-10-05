@@ -1,8 +1,4 @@
-require 'minitest/autorun'
-require 'aws-sdk-s3control'
-require 'config'
-
-require_relative '../lib/fixity/s3_control'
+require 'test_helper'
 
 class TestS3Control < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
@@ -10,6 +6,10 @@ class TestS3Control < Minitest::Test
   def setup
     @mock_s3_control_client = Minitest::Mock.new
     @s3_control = S3Control.new(@mock_s3_control_client)
+  end
+
+  def teardown
+    File.truncate('logs/fixity.log', 0)
   end
 
   def test_describe_job

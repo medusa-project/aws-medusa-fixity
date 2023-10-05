@@ -1,3 +1,3 @@
 medusa-test-main-backup,123/test.tst,,failed,409,RestoreAlreadyInProgress,result_message
-medusa-test-main-backup,123/test1.tst,,failed,409,RestoreAlreadyInProgress,result_message
+medusa-test-main-backup,123/test1.tst,,failed,200,PermanentFailure,result_message
 medusa-test-main-backup,345/test.tst,,failed,200,PermanentFailure,result_message

@@ -1,8 +1,4 @@
-require 'minitest/autorun'
-require 'aws-sdk-s3'
-require 'config'
-
-require_relative '../lib/fixity/s3'
+require 'test_helper'
 
 class TestS3 < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
@@ -10,6 +6,10 @@ class TestS3 < Minitest::Test
   def setup
     @mock_s3_client = Minitest::Mock.new
     @s3 = S3.new(@mock_s3_client)
+  end
+
+  def teardown
+    File.truncate('logs/fixity.log', 0)
   end
 
   def test_put_object

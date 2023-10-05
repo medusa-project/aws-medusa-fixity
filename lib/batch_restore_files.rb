@@ -13,7 +13,7 @@ require_relative 'fixity/s3'
 require_relative 'fixity/s3_control'
 
 class BatchRestoreFiles
-  MAX_BATCH_COUNT = 10000
+  MAX_BATCH_COUNT = 125000
   MAX_BATCH_SIZE = 16 * 1024**2 * MAX_BATCH_COUNT
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
   attr_accessor :s3, :s3_control, :dynamodb, :medusa_db
@@ -84,6 +84,12 @@ class BatchRestoreFiles
     log_message = "Get batch duration to process #{list.size} of size: #{batch_size} files: #{duration}"
     FixityConstants::LOGGER.info(log_message)
 
+    etag = put_manifest(manifest)
+    send_batch_job(manifest, etag)
+  end
+
+  def batch_restore_expired_items
+    manifest = 'manifest-expired-files.csv'
     etag = put_manifest(manifest)
     send_batch_job(manifest, etag)
   end
@@ -249,6 +255,13 @@ class BatchRestoreFiles
       medusa_files.push(MedusaFile.new(name, file_id, directory_id, initial_checksum))
     end
     [file_directories.uniq, medusa_files, batch_size]
+  end
+
+  def restore_expired_item(batch_item)
+    open('manifest-expired-files.csv', 'a') { |f|
+      f.puts "#{Settings.aws.s3.backup_bucket},#{batch_item.s3_key}"
+    }
+    put_batch_item(batch_item)
   end
 
   def restore_item(batch_item)

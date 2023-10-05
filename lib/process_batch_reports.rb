@@ -95,7 +95,7 @@ class ProcessBatchReports
 
   def get_manifest_key(job_id)
     key = "#{Settings.aws.s3.batch_prefix}/job-#{job_id}/manifest.json"
-    s3_json_resp = @s3.get_object(Settings.aws.s3.fixity_bucket_arn, key)
+    s3_json_resp = @s3.get_object(Settings.aws.s3.fixity_bucket, key)
     return nil if s3_json_resp.nil?
 
     JSON.parse(s3_json_resp.body.read)['Results'][0]['Key']
@@ -111,6 +111,8 @@ class ProcessBatchReports
       file_id = get_file_id(key)
       error_message = "Object: #{file_id} with key: #{key} failed during restoration job with error #{https_status_code}:#{result_message}"
       FixityConstants::LOGGER.error(error_message)
+
+      next if https_status_code == Settings.aws.s3.already_in_progress
 
       # re-request restoration for files with "AccessDenied" https_status_codes, this could indicate the file is missing
       file_found = @s3.found?(Settings.aws.s3.backup_bucket, key)

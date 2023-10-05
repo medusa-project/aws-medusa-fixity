@@ -1,8 +1,5 @@
-require 'minitest/autorun'
-require 'config'
+require 'test_helper'
 
-require_relative '../lib/fixity'
-require_relative '../lib/fixity/dynamodb'
 class TestFixity < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
 
@@ -11,6 +8,10 @@ class TestFixity < Minitest::Test
     @mock_dynamodb = Minitest::Mock.new
     @mock_medusa_sqs = Minitest::Mock.new
     @fixity = Fixity.new(@mock_s3, @mock_dynamodb, @mock_medusa_sqs)
+  end
+
+  def teardown
+    File.truncate('logs/fixity.log', 0)
   end
 
   def test_run_fixity

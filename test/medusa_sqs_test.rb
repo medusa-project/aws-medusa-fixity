@@ -1,7 +1,4 @@
-require 'minitest/autorun'
-require 'config'
-
-require_relative '../lib/medusa_sqs'
+require 'test_helper'
 
 class TestMedusaSqs < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))
@@ -9,6 +6,10 @@ class TestMedusaSqs < Minitest::Test
   def setup
     @mock_medusa_sqs_client = Minitest::Mock.new
     @medusa_sqs = MedusaSqs.new(@mock_medusa_sqs_client)
+  end
+
+  def teardown
+    File.truncate('logs/fixity.log', 0)
   end
 
   def test_send_medusa_message

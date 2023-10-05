@@ -1,7 +1,4 @@
-require 'minitest/autorun'
-require 'config'
-
-require_relative '../lib/fixity/fixity_utils'
+require 'test_helper'
 
 class TestFixityUtils < Minitest::Test
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", 'test'))

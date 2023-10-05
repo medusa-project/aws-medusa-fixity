@@ -99,6 +99,7 @@ class RestorationEvent
     FixityConstants::LOGGER.info(message)
     item = BatchItem.new(s3_key, file_id, initial_checksum)
     batch_restore_files = BatchRestoreFiles.new(@s3, @dynamodb)
-    batch_restore_files.restore_item(item)
+
+    batch_restore_files.restore_expired_item(item)
   end
 end
