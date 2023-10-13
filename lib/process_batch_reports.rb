@@ -55,10 +55,11 @@ class ProcessBatchReports
     return nil if manifest_key.nil?
 
     error_batch = parse_completion_report(manifest_key)
-    return nil if error_batch.empty?
 
-    put_requests = @dynamodb.get_put_requests(error_batch)
-    @dynamodb.batch_write_items(Settings.aws.dynamodb.restoration_errors_table_name, put_requests)
+    unless error_batch.empty?
+      put_requests = @dynamodb.get_put_requests(error_batch)
+      @dynamodb.batch_write_items(Settings.aws.dynamodb.restoration_errors_table_name, put_requests)
+    end
 
     remove_job_id(job_id)
   end
