@@ -112,7 +112,7 @@ class BatchRestoreFiles
 
   def evaluate_done(id, max_id)
     done = id >= max_id
-    done_message = 'DONE: fixity id matches maximum file id in medusa'
+    done_message = 'FIXITY-DONE: fixity id matches maximum file id in medusa'
     FixityConstants::LOGGER.error(done_message) if done
     done
   end
