@@ -228,6 +228,8 @@ class Fixity
                       "#{Settings.aws.dynamodb.last_updated} = :timestamp, " \
                       "#{Settings.aws.dynamodb.mismatch} = :mismatch"
     @dynamodb.update_item(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_values, update_expr)
+    # TODO: Add error message for mismatch
+    # FixityConstants::LOGGER.error(outcome_message)
   end
 
   def update_fixity_error(s3_key)
