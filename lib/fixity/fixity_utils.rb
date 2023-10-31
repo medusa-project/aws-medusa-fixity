@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'cgi'
+require 'csv'
 
 class FixityUtils
   def self.escape(s3_key)
@@ -9,5 +10,23 @@ class FixityUtils
 
   def self.unescape(s3_key)
     CGI.unescape(s3_key)
+  end
+
+  def self.compareCSV(expired, manifest)
+    manifest_csv = CSV.new(File.read(manifest))
+    manifest_keys = []
+    manifest_csv.each do |row|
+      manifest_bucket, manifest_key = row
+      manifest_keys.push(manifest_key)
+    end
+    expired_csv = CSV.new(File.read(expired))
+    expired_csv.each do |row|
+      expired_bucket, expired_key = row
+      next unless manifest_keys.include?(expired_key)
+
+      open("expired-#{manifest}", 'a') { |f|
+        f.puts "#{expired_bucket},#{expired_key}"
+      }
+    end
   end
 end
