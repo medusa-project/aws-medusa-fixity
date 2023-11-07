@@ -54,17 +54,11 @@ class S3
   end
 
   def get_object_with_byte_range(bucket, key, range)
-    begin
-      object_part = @s3_client.get_object({
-                                            bucket: bucket, # required
-                                            key: key, # required
-                                            range: range
-                                          })
-    rescue StandardError => e
-      error_message = "Error getting object using byte_range for key: #{key} from bucket #{bucket}: #{e.message}"
-      FixityConstants::LOGGER.error(error_message)
-    end
-    object_part
+    @s3_client.get_object({
+                            bucket: bucket, # required
+                            key: key, # required
+                            range: range
+                          })
   end
 
   def restore_object(dynamodb, bucket, key, file_id)

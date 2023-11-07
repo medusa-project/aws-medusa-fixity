@@ -560,6 +560,36 @@ class TestFixity < Minitest::Test
     end
   end
 
+  def test_update_fixity_expired
+    manifest = 'manifest-expired-files.csv'
+    test_key = '123/test.tst'
+    test_id = 123
+    test_checksum = '12345678901234567890123456789012'
+
+    item = {
+      Settings.aws.dynamodb.s3_key => test_key,
+      Settings.aws.dynamodb.file_id => 123,
+      Settings.aws.dynamodb.initial_checksum => '12345678901234567890123456789012',
+      Settings.aws.dynamodb.restoration_status => Settings.aws.dynamodb.requested,
+      Settings.aws.dynamodb.last_updated => Time.new(2).getutc.iso8601(3)
+    }
+    dynamodb_args_validation = [Settings.aws.dynamodb.fixity_table_name, item]
+    @mock_dynamodb.expect(:put_item, [], dynamodb_args_validation)
+
+    Time.stub(:now, Time.new(2)) do
+      @fixity.update_fixity_expired(test_key, test_id, test_checksum)
+      assert_mock(@mock_dynamodb)
+      manifest_table = CSV.new(File.read(manifest))
+      manifest_table.each do |row|
+        bucket, key = row
+        assert_equal(bucket, Settings.aws.s3.backup_bucket)
+        assert_equal('123/test.tst', key)
+      end
+    end
+
+    File.delete(manifest) if File.exist?(manifest)
+  end
+
   def test_create_medusa_message
     file_id = 123
     checksum = '12345678912345678912345678912'

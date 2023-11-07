@@ -7,6 +7,7 @@ require_relative 'fixity/fixity_constants'
 require_relative 'fixity/fixity_utils'
 require_relative 'fixity/s3'
 require_relative 'medusa_sqs'
+require_relative 'batch_restore_files'
 
 class Fixity
   Config.load_and_set_settings(Config.setting_files("#{ENV['RUBY_HOME']}/config", ENV['RUBY_ENV']))
@@ -34,7 +35,12 @@ class Fixity
     update_fixity_ready(s3_key)
 
     # compare calculated checksum with initial checksum
-    calculated_checksum, error_message = calculate_checksum(s3_key, file_id, file_size)
+    calculated_checksum, error_message, expired = calculate_checksum(s3_key, file_id, file_size)
+
+    if expired
+      update_fixity_expired(s3_key, file_id, initial_checksum)
+      return
+    end
 
     handle_outcome(initial_checksum, calculated_checksum, s3_key)
 
@@ -69,7 +75,12 @@ class Fixity
       FixityConstants::LOGGER.info(message)
 
       # compare calculated checksum with initial checksum
-      calculated_checksum, error_message = calculate_checksum(s3_key, file_id, file_size)
+      calculated_checksum, error_message, expired = calculate_checksum(s3_key, file_id, file_size)
+
+      if expired
+        update_fixity_expired(s3_key, file_id, initial_checksum)
+        next
+      end
 
       handle_outcome(initial_checksum, calculated_checksum, s3_key)
 
@@ -90,7 +101,12 @@ class Fixity
       file_id = fixity_item.items[0][Settings.aws.dynamodb.file_id].to_i
       file_size = fixity_item.items[0][Settings.aws.dynamodb.file_size]
       initial_checksum = fixity_item.items[0][Settings.aws.dynamodb.initial_checksum]
-      calculated_checksum, error_message = calculate_checksum(key, file_id, file_size)
+      calculated_checksum, error_message, expired = calculate_checksum(key, file_id, file_size)
+
+      if expired
+        update_fixity_expired(s3_key, file_id, initial_checksum)
+        next
+      end
 
       handle_outcome(initial_checksum, calculated_checksum, key)
 
@@ -159,7 +175,7 @@ class Fixity
     if file_size.nil?
       error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: file size nil"
       FixityConstants::LOGGER.error(error_message)
-      return nil, error_message
+      return nil, error_message, false
     end
     md5 = Digest::MD5.new
     download_size_start = 0
@@ -174,13 +190,15 @@ class Fixity
         download_size_start = download_size_end
         download_size_end += 16 * MEGABYTE
       end
+    rescue Aws::S3::Errors::InvalidObjectState => e
+      return nil, nil, true
     rescue StandardError => e
       error_message = "Error calculating md5 for object #{s3_key} with ID #{file_id}: #{e.message}"
       FixityConstants::LOGGER.error(error_message)
       update_fixity_error(s3_key)
-      return nil, error_message
+      return nil, error_message, false
     end
-    [md5.hexdigest, nil]
+    [md5.hexdigest, nil, false]
   end
 
   def handle_outcome(initial_checksum, calculated_checksum, key)
@@ -247,6 +265,15 @@ class Fixity
                       '#E = :error'
     @dynamodb.update_item_with_names(Settings.aws.dynamodb.fixity_table_name, key, expr_attr_names, expr_attr_values,
                                      update_expr)
+  end
+
+  def update_fixity_expired(s3_key, file_id, initial_checksum)
+    message = "EXPIRATION: File #{file_id} expired before being processed by fixity"
+    FixityConstants::LOGGER.info(message)
+    item = BatchItem.new(s3_key, file_id, initial_checksum)
+    batch_restore_files = BatchRestoreFiles.new(@s3, @dynamodb)
+
+    batch_restore_files.restore_expired_item(item)
   end
 
   def create_medusa_message(file_id, calculated_checksum, error_message)
