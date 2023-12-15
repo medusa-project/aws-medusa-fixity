@@ -19,7 +19,6 @@ begin
 
   pid_files.each do |pid_file|
     running = Pid.running?(File.read(pid_file).split.first.to_i)
-    FixityConstants::LOGGER.info(running)
     next if running
 
     task = IO.popen("ruby #{bin_home}/compute_fixity.rb")
