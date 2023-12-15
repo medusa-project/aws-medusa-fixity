@@ -15,11 +15,11 @@ begin
   #              #{temp_home}/fixity.13.pid #{temp_home}/fixity.14.pid #{temp_home}/fixity.15.pid #{temp_home}/fixity.16.pid]
   batch_restore_pid = "#{temp_home}/batch_restoration.pid"
   batch_restoration_running = Pid.running?(File.read(batch_restore_pid).split.first.to_i)
-  FixityConstants::LOGGER.info(batch_restoration_running)
   sleep 60 and exit if batch_restoration_running
 
   pid_files.each do |pid_file|
     running = Pid.running?(File.read(pid_file).split.first.to_i)
+    FixityConstants::LOGGER.info(running)
     next if running
 
     task = IO.popen("ruby #{bin_home}/compute_fixity.rb")
