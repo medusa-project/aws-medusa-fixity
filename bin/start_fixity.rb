@@ -3,6 +3,7 @@
 
 require_relative 'pid'
 require_relative '../lib/fixity/fixity_constants'
+require_relative '../bin/set-vars'
 
 temp_home = ENV['TMP_HOME']
 bin_home = ENV['BIN_HOME']
