@@ -8,6 +8,8 @@ require_relative '../bin/set-vars'
 begin
   temp_home = ENV['TMP_HOME']
   bin_home = ENV['BIN_HOME']
+  FixityConstants::LOGGER.info(temp_home)
+  FixityConstants::LOGGER.info(bin_home)
 
   pid_files = %W[#{temp_home}/fixity.1.pid #{temp_home}/fixity.2.pid #{temp_home}/fixity.3.pid #{temp_home}/fixity.4.pid
                  #{temp_home}/fixity.5.pid #{temp_home}/fixity.6.pid #{temp_home}/fixity.7.pid #{temp_home}/fixity.8.pid
