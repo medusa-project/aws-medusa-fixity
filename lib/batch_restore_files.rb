@@ -88,8 +88,8 @@ class BatchRestoreFiles
     send_batch_job(manifest, etag)
   end
 
-  def batch_restore_expired_items
-    manifest = 'manifest-expired-files.csv'
+  def batch_restore_expired_items(manifest)
+    # manifest = 'manifest-expired-files.csv'
     etag = put_manifest(manifest)
     send_batch_job(manifest, etag)
   end
