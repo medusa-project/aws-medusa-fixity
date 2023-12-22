@@ -258,7 +258,7 @@ class BatchRestoreFiles
   end
 
   def restore_expired_item(batch_item)
-    open('manifest-expired-files.csv', 'a') { |f|
+    open("manifest-expired-files-#{Time.now.strftime('%F')}.csv", 'a') { |f|
       f.puts "#{Settings.aws.s3.backup_bucket},#{batch_item.s3_key}"
     }
     put_batch_item(batch_item)
