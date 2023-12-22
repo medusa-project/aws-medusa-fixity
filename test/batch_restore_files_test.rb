@@ -726,7 +726,7 @@ class TestBatchRestoreFiles < Minitest::Test
   end
 
   def test_restore_expired_item
-    manifest = 'manifest-expired-files.csv'
+    manifest = 'manifest-expired-files-0001-01-01.csv'
     id = '123'
     item_key = '123/test.tst'
     checksum = '12345678901234567890123456789012'

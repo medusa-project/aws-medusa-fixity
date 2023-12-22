@@ -145,7 +145,7 @@ class TestRestorationEvent < Minitest::Test
   end
 
   def test_handle_expiration_expired
-    manifest = 'manifest-expired-files.csv'
+    manifest = 'manifest-expired-files-0002-01-01.csv'
     mock_update_item_resp = Minitest::Mock.new
     attributes = { Settings.aws.dynamodb.fixity_status => Settings.aws.dynamodb.calculating,
                    Settings.aws.dynamodb.s3_key => '123/test.tst',

@@ -561,7 +561,7 @@ class TestFixity < Minitest::Test
   end
 
   def test_update_fixity_expired
-    manifest = 'manifest-expired-files.csv'
+    manifest = 'manifest-expired-files-0002-01-01.csv'
     test_key = '123/test.tst'
     test_id = 123
     test_checksum = '12345678901234567890123456789012'
