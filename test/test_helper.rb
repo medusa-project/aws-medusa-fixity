@@ -16,4 +16,5 @@ require_relative '../lib/fixity/s3'
 require_relative '../lib/medusa_sqs'
 require_relative '../lib/process_batch_reports'
 require_relative '../lib/restoration_event'
+require_relative '../lib/process_results'
 

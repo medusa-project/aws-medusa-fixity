@@ -13,3 +13,4 @@ aws:
         restoration_errors_table_name : "FixityTestRestorationErrorsTable"
         medusa_db_id_table_name: "FixityTestMedusaDBIdTable"
         index_name: "FixityProcessingQueue"
+        mismatch_index_name: "FixityMismatch"

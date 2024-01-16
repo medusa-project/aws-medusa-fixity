@@ -176,6 +176,22 @@ class TestDynamodb < Minitest::Test
     assert_mock(@mock_dynamodb_client)
   end
 
+  def test_scan_index_format
+    table_name = 'TestTable'
+    index_name = 'TextIndex'
+    expression_attribute_names = { '#TT' => 'TestTest', '#TN' => 'TestName' }
+    projection_expression = '#TT, #TN'
+    args_verification = { table_name: table_name,
+                          index: index_name,
+                          select: 'SPECIFIC_ATTRIBUTES',
+                          expression_attribute_names: expression_attribute_names,
+                          projection_expression: projection_expression
+    }
+    @mock_dynamodb_client.expect(:scan, [], [args_verification])
+    @dynamodb.scan_index(table_name, index_name, expression_attribute_names, projection_expression)
+    assert_mock(@mock_dynamodb_client)
+  end
+
   def test_delete_item_format
     args_verification = { key: { Settings.aws.dynamodb.s3_key => '123/test.tst' },
                           table_name: 'TestTable' }
