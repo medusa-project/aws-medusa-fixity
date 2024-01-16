@@ -158,9 +158,10 @@ class Dynamodb
       scan_resp = @dynamodb_client.scan({
                                           table_name: table_name,
                                           index: index,
-                                          select: 'SPECIFIC_ATTRIBUTES',
-                                          expression_attribute_names: expression_attribute_names,
-                                          projection_expression: projection_expression
+                                          select: 'ALL_ATTRIBUTES',
+                                          limit: 1
+                                          # expression_attribute_names: expression_attribute_names,
+                                          # projection_expression: projection_expression
                                         })
     rescue StandardError => e
       error_message = "Error scanning dynamodb table #{table_name}: #{e.message}"
