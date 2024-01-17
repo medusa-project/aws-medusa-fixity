@@ -182,7 +182,7 @@ class TestDynamodb < Minitest::Test
     expression_attribute_names = { '#TT' => 'TestTest', '#TN' => 'TestName' }
     projection_expression = '#TT, #TN'
     args_verification = { table_name: table_name,
-                          index: index_name,
+                          index_name: index_name,
                           select: 'SPECIFIC_ATTRIBUTES',
                           expression_attribute_names: expression_attribute_names,
                           projection_expression: projection_expression
